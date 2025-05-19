@@ -1,0 +1,35 @@
+# download_config_template.yml
+# --------------------------------------------------------------------
+# Parameters controlling what to DOWNLOAD from NEX‑GDDP‑CMIP6.
+# Copy to download_config.yml and edit as required.
+# --------------------------------------------------------------------
+meta:
+  owner: "SAEON Climate Team"
+  created: "2025-05-19"
+  purpose: "Define spatial / temporal subset and model list for download"
+
+region:
+  name: "South Africa mainland"
+  lat_min: -35.0
+  lat_max: -21.0
+  lon_min: 16.0
+  lon_max: 33.0
+  stride: 1        # 1 = native 0.25°, 2 = every second grid cell
+
+time:
+  start_year: 1980
+  end_year: 2050
+
+models:
+  select: ["ACCESS-CM2", "MPI-ESM1-2-LR", "GFDL-ESM4"]
+
+experiments:
+  select: ["historical", "ssp245", "ssp585"]
+
+variables:
+  daily:
+    - pr        # precipitation
+    - tasmax    # daily max temp
+    - tasmin    # daily min temp
+
+run: "r1i1p1f1"    # ensemble member
