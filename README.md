@@ -65,6 +65,15 @@ ssp126:
 python src/nex_gddp_catalog.py vars ACCESS-CM2 ssp585 r1i1p1f1
 ```
 
+
+
+```bash
+# List all file names (all versions)
+# Syntax:
+# python src/nex_gddp_catalog.py files <MODEL> <EXPERIMENT> <RUN> <VARIABLE>
+
+python src/nex_gddp_catalog.py files ACCESS-CM2 historical r1i1p1f1 pr
+```
 ---
 
 ## 2  Bulk download with YAML config
