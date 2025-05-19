@@ -1,0 +1,3 @@
+requests>=2.31
+xarray>=2024.5
+netCDF4>=1.6
