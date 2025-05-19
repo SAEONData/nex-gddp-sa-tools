@@ -57,11 +57,15 @@ python src/nex_gddp_catalog.py info ACCESS-CM2
 
 ```
 historical:
-  r1i1p1f1: pr, tasmax, tasmin
+  r1i1p1f1: hurs, huss, pr, rlds, rsds, sfcWind, tas, tasmax, tasmin
+ssp126:
+  r1i1p1f1: hurs, huss, pr, rlds, rsds, sfcWind, tas, tasmax, tasmin
 ssp245:
-  r1i1p1f1: pr, tasmax, tasmin
+  r1i1p1f1: hurs, huss, pr, rlds, rsds, sfcWind, tas, tasmax, tasmin
+ssp370:
+  r1i1p1f1: hurs, huss, pr, rlds, rsds, sfcWind, tas, tasmax, tasmin
 ssp585:
-  r1i1p1f1: pr, tasmax, tasmin
+  r1i1p1f1: hurs, huss, pr, rlds, rsds, sfcWind, tas, tasmax, tasmin
 ```
 
 ### 3  Show variable codes for a run
@@ -71,7 +75,7 @@ python src/nex_gddp_catalog.py vars ACCESS-CM2 ssp585 r1i1p1f1
 ```
 
 ```
-pr, tasmax, tasmin
+hurs, huss, pr, rlds, rsds, sfcWind, tas, tasmax, tasmin
 ```
 
 ---
