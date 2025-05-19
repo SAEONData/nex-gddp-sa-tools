@@ -1,11 +1,12 @@
 # nex-gddp-sa-tools
-Helper scripts for exploring, downloading, and analysing **NASA NEX-GDDP-CMIP6** down‑scaled climate projections, pre‑configured for the South‑African domain (SAWS + SAEON).
+Helper scripts for exploring, downloading, and analysing **NASA NEX‑GDDP‑CMIP6** down‑scaled climate projections for the South‑African domain (SAWS + SAEON).
 
 * **Catalogue explorer** – list models, experiments, runs, variables  
-* **SA downloader** – grab daily precipitation / temperature for South Africa (lat −35 → −21 °, lon 16 → 33 °)
+* **Bulk downloader** – fetch daily precipitation & temperature for a South‑Africa bounding box via YAML parameters  
+* **(Coming soon)** climate‑index calculator & ensemble aggregation
 
 > **Data source**  
-> NASA Earth Exchange Global Daily Downscaled Projections (NEX‑GDDP‑CMIP6) via NCCS THREDDS.
+> NASA Earth Exchange Global Daily Downscaled Projections (NEX‑GDDP‑CMIP6) served via NCCS THREDDS.
 
 ---
 
@@ -20,14 +21,11 @@ pip install -r requirements.txt
 
 ---
 
-## Catalogue explorer  
+## 1  Catalogue explorer  
 _Last verified: **19 May 2025**_
 
-The script **`src/nex_gddp_catalog.py`** lets you inspect the catalogue.
-
-### 1  List all CMIP6 models
-
 ```bash
+# List all CMIP6 models
 python src/nex_gddp_catalog.py models
 ```
 
@@ -49,9 +47,8 @@ CNRM-ESM2-1
 ```
 </details>
 
-### 2  Drill into one model
-
 ```bash
+# Experiments, ensemble runs & variables for one model
 python src/nex_gddp_catalog.py info ACCESS-CM2
 ```
 
@@ -60,57 +57,62 @@ historical:
   r1i1p1f1: hurs, huss, pr, rlds, rsds, sfcWind, tas, tasmax, tasmin
 ssp126:
   r1i1p1f1: hurs, huss, pr, rlds, rsds, sfcWind, tas, tasmax, tasmin
-ssp245:
-  r1i1p1f1: hurs, huss, pr, rlds, rsds, sfcWind, tas, tasmax, tasmin
-ssp370:
-  r1i1p1f1: hurs, huss, pr, rlds, rsds, sfcWind, tas, tasmax, tasmin
-ssp585:
-  r1i1p1f1: hurs, huss, pr, rlds, rsds, sfcWind, tas, tasmax, tasmin
+...
 ```
-
-### 3  Show variable codes for a run
 
 ```bash
+# List variable codes for a specific run
 python src/nex_gddp_catalog.py vars ACCESS-CM2 ssp585 r1i1p1f1
-```
-
-```
-hurs, huss, pr, rlds, rsds, sfcWind, tas, tasmax, tasmin
 ```
 
 ---
 
-## South‑Africa subset downloader
+## 2  Bulk download with YAML config
+
+1. **Create your config:**
 
 ```bash
-python src/download_sa_subset.py \
-    --model ACCESS-CM2 \
-    --experiment historical \
-    --variable pr \
-    --start 2010 --end 2014
+cp download_config_template.yml download_config.yml
+vim download_config.yml   # edit region, years, models, variables
 ```
 
-Outputs NetCDFs to `data/<variable>/<model>/<experiment>/`.
+2. **Run the driver:**
+
+```bash
+python src/run_downloads.py            # or  python -m src.run_downloads
+```
+
+The script reads `download_config.yml`, loops over every  
+`model × experiment × variable`, and saves files under:
+
+```
+data/<variable>/<model>/<experiment>/<variable>_<year>.nc
+```
+
+### One‑off test download
+
+```bash
+python src/download_sa_subset.py     --model ACCESS-CM2     --experiment historical     --variable pr     --start 2010 --end 2014
+```
 
 ---
 
 ## Requirements
 
 ```
-requests
-xarray
-netCDF4
+requests>=2.31
+xarray>=2024.5
+netCDF4>=1.6
+pyyaml>=6.0        # NEW – parses YAML configs
 ```
 
-Install via:
+Install / update:
 
 ```bash
 pip install -r requirements.txt
 ```
 
 ---
-
-
 
 ## Licence
 

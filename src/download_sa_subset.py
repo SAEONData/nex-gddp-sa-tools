@@ -43,6 +43,45 @@ def download(url: str, dest: Path):
             for chunk in r.iter_content(chunk_size=2**20):
                 fh.write(chunk)
                 
+# ----------------------------------------------------------------------
+# Re-usable function: other scripts (e.g. run_downloads.py) can call this
+# ----------------------------------------------------------------------
+def download_sa_bbox(
+    model: str,
+    experiment: str,
+    variable: str,
+    start: int,
+    end: int,
+    *,
+    run: str = "r1i1p1f1",
+    bbox: dict = None,
+    stride: int = 1,
+    out_root: Path = Path("data"),
+):
+    """
+    Download a South-Africa subset for one variable & year range.
+
+    Parameters
+    ----------
+    model, experiment, variable : str
+    start, end                  : int   inclusive years
+    run                         : ensemble ID (default r1i1p1f1)
+    bbox                        : dict(north, south, west, east)
+    stride                      : horizStride (1 = native grid)
+    out_root                    : root directory for NetCDFs
+    """
+    if bbox is None:
+        bbox = BBOX
+        
+    params = PARAMS.replace("horizStride=1", f"horizStride={stride}")
+    
+    for year in range(start, end + 1):
+        url = (BASE + params).format(
+            model=model, exp=experiment, run=run, var=variable, year=year
+        )
+        dest = out_root / variable / model / experiment / f"{variable}_{year}.nc"
+        download(url, dest)
+                
 def main():
     parser = argparse.ArgumentParser(description="Download South‑Africa subset from NEX‑GDDP‑CMIP6")
     parser.add_argument("--model", required=True, help="GCM name, e.g. ACCESS-CM2")
