@@ -6,6 +6,10 @@ __pycache__/
 # C extensions
 *.so
 
+# NEX-GDDP output
+data/
+*.nc
+
 # Distribution / packaging
 .Python
 build/
