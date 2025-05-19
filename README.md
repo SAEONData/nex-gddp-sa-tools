@@ -69,11 +69,10 @@ python src/nex_gddp_catalog.py vars ACCESS-CM2 ssp585 r1i1p1f1
 
 ## 2  Bulk download with YAML config
 
-1. **Create your config:**
+1. **Edit the config:**
 
 ```bash
-cp download_config_template.yml download_config.yml
-vim download_config.yml   # edit region, years, models, variables
+e.g. vim download_config.yml   # edit region, years, models, variables
 ```
 
 2. **Run the driver:**
