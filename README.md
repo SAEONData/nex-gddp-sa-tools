@@ -112,4 +112,4 @@ pip install -r requirements.txt
 
 ## Licence
 
-MIT – see `LICENSE`.
+TODO
