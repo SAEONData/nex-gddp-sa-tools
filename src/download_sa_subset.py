@@ -34,14 +34,42 @@ PARAMS = (
     "&accept=netcdf4&addLatLon=true"
 ).format(**BBOX, var="{var}", year="{year}")
 
-def download(url: str, dest: Path):
+#def download(url: str, dest: Path):
+#   dest.parent.mkdir(parents=True, exist_ok=True)
+#   print(f"↳ {dest.name}")
+#   with requests.get(url, stream=True, timeout=600) as r:
+#       r.raise_for_status()
+#       with open(dest, "wb") as fh:
+#           for chunk in r.iter_content(chunk_size=2**20):
+#               fh.write(chunk)
+
+def download(base_url: str, dest: Path):
+    """
+    Attempts to download a versioned NetCDF file if available,
+    falling back to the original filename.
+    """
     dest.parent.mkdir(parents=True, exist_ok=True)
-    print(f"↳ {dest.name}")
-    with requests.get(url, stream=True, timeout=600) as r:
-        r.raise_for_status()
-        with open(dest, "wb") as fh:
-            for chunk in r.iter_content(chunk_size=2**20):
-                fh.write(chunk)
+    print(f"↳ Attempting {dest.name}")
+    
+    versions_to_try = [
+        base_url.replace(".nc", "_v1.1.nc"),  # Try versioned file first
+        base_url  # Then fall back to original
+    ]
+    
+    for url in versions_to_try:
+        try:
+            print(f"  ↪ Trying: {url.split('/')[-1]}")
+            with requests.get(url, stream=True, timeout=600) as r:
+                if r.status_code == 200:
+                    with open(dest, "wb") as fh:
+                        for chunk in r.iter_content(chunk_size=2**20):
+                            fh.write(chunk)
+                    print(f"  ✓ Downloaded: {url.split('/')[-1]}")
+                    return
+        except requests.RequestException as e:
+            print(f"Failed: {e}")
+            
+    print(f"Could not download {dest.name}")
                 
 # ----------------------------------------------------------------------
 # Re-usable function: other scripts (e.g. run_downloads.py) can call this
