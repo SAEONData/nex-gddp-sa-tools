@@ -17,11 +17,11 @@ region:
   stride: 1        # 1 = native 0.25°, 2 = every second grid cell
 
 time:
-  start_year: 1980
-  end_year: 1981
+  start_year: 1949
+  end_year: 2014
 
 models:
-select: ["ACCESS-CM2", "ACCESS-ESM1-5", "BCC-CSM2-MR", "CESM2", "CESM2-WACCM",
+  select: ["ACCESS-CM2", "ACCESS-ESM1-5", "BCC-CSM2-MR", "CESM2", "CESM2-WACCM",
 "CMCC-CM2-SR5", "CMCC-ESM2", "CNRM-CM6-1", "CNRM-ESM2-1", "CanESM5",
 "EC-Earth3", "EC-Earth3-Veg-LR", "FGOALS-g3", "GFDL-CM4", "GFDL-CM4_gr2",
 "GFDL-ESM4", "GISS-E2-1-G", "HadGEM3-GC31-LL", "HadGEM3-GC31-MM", "IITM-ESM",
@@ -31,8 +31,8 @@ select: ["ACCESS-CM2", "ACCESS-ESM1-5", "BCC-CSM2-MR", "CESM2", "CESM2-WACCM",
 # select: ["ACCESS-CM2"]
 
 experiments:
-# select: ["historical", "ssp245", "ssp585"]
-  select: ["historical"]
+  select: ["historical", "ssp126", "ssp245", "ssp370", "ssp585"]
+# select: ["historical"]
 
 variables:
   daily:
