@@ -1,5 +1,3 @@
-#!/Users/privateprivate/SARVA_ws/bin/python
-
 #!/usr/bin/env python3
 """download_sa_subset.py
 Download a South‑Africa spatial subset (0.25° grid, lat −35‒−21°, lon 16‒33°)
@@ -34,43 +32,18 @@ PARAMS = (
     "&accept=netcdf4&addLatLon=true"
 ).format(**BBOX, var="{var}", year="{year}")
 
-#def download(url: str, dest: Path):
-#   dest.parent.mkdir(parents=True, exist_ok=True)
-#   print(f"↳ {dest.name}")
-#   with requests.get(url, stream=True, timeout=600) as r:
-#       r.raise_for_status()
-#       with open(dest, "wb") as fh:
-#           for chunk in r.iter_content(chunk_size=2**20):
-#               fh.write(chunk)
+def download(url: str, dest: Path):
+    """
+    Attempts to download a file from the given URL and save it to dest.
+    """
+    print(f"↳ Attempting: {url}")
+    with requests.get(url, stream=True, timeout=600) as r:
+        r.raise_for_status()
+        with open(dest, "wb") as fh:
+            for chunk in r.iter_content(chunk_size=2**20):
+                fh.write(chunk)
+    print(f"✓ Saved to: {dest}")
 
-def download(base_url: str, dest: Path):
-    """
-    Attempts to download a versioned NetCDF file if available,
-    falling back to the original filename.
-    """
-    dest.parent.mkdir(parents=True, exist_ok=True)
-    print(f"↳ Attempting {dest.name}")
-    
-    versions_to_try = [
-        base_url.replace(".nc", "_v1.1.nc"),  # Try versioned file first
-        base_url  # Then fall back to original
-    ]
-    
-    for url in versions_to_try:
-        try:
-            print(f"  ↪ Trying: {url.split('/')[-1]}")
-            with requests.get(url, stream=True, timeout=600) as r:
-                if r.status_code == 200:
-                    with open(dest, "wb") as fh:
-                        for chunk in r.iter_content(chunk_size=2**20):
-                            fh.write(chunk)
-                    print(f"  ✓ Downloaded: {url.split('/')[-1]}")
-                    return
-        except requests.RequestException as e:
-            print(f"Failed: {e}")
-            
-    print(f"Could not download {dest.name}")
-                
 # ----------------------------------------------------------------------
 # Re-usable function: other scripts (e.g. run_downloads.py) can call this
 # ----------------------------------------------------------------------
@@ -100,16 +73,36 @@ def download_sa_bbox(
     """
     if bbox is None:
         bbox = BBOX
-        
+
     params = PARAMS.replace("horizStride=1", f"horizStride={stride}")
-    
+    base_path = f"{variable}_day_{model}_{experiment}_{run}_gn_{{year}}.nc"
+
     for year in range(start, end + 1):
-        url = (BASE + params).format(
-            model=model, exp=experiment, run=run, var=variable, year=year
-        )
-        dest = out_root / variable / model / experiment / f"{variable}_{year}.nc"
-        download(url, dest)
-                
+        # Prepare destination folder
+        dest_folder = out_root / variable / model / experiment
+        dest_folder.mkdir(parents=True, exist_ok=True)
+
+        # Try _v1.1 first, then fallback
+        versioned_filename = base_path.replace("{year}", str(year)).replace(".nc", "_v1.1.nc")
+        fallback_filename = base_path.replace("{year}", str(year))
+
+        for filename in [versioned_filename, fallback_filename]:
+            url = (
+                f"https://ds.nccs.nasa.gov/thredds/ncss/grid/AMES/NEX/GDDP-CMIP6/"
+                f"{model}/{experiment}/{run}/{variable}/{filename}" + params.format(var=variable, year=year)
+            )
+            dest = dest_folder / filename
+            try:
+                download(url, dest)
+                break  # Stop if successful
+            except requests.HTTPError as e:
+                print(f"{filename} not available: {e}")
+            except Exception as e:
+                print(f"Error: {e}")
+
+# ----------------------------------------------------------------------
+# Command-line execution
+# ----------------------------------------------------------------------
 def main():
     parser = argparse.ArgumentParser(description="Download South‑Africa subset from NEX‑GDDP‑CMIP6")
     parser.add_argument("--model", required=True, help="GCM name, e.g. ACCESS-CM2")
@@ -119,26 +112,33 @@ def main():
     parser.add_argument("--start", type=int, required=True, help="First year (YYYY)")
     parser.add_argument("--end", type=int, required=True, help="Last year (YYYY, inclusive)")
     args = parser.parse_args()
-    
+
     out_root = Path("data") / args.variable / args.model / args.experiment
     files = []
-    
+
     for year in range(args.start, args.end + 1):
-        url = (BASE + PARAMS).format(
-            model=args.model,
-            exp=args.experiment,
-            run=args.run,
-            var=args.variable,
-            year=year,
-        )
-        dest = out_root / f"{args.variable}_{year}.nc"
-        download(url, dest)
-        files.append(dest)
-        
+        # Try _v1.1 and fallback to base filename
+        base_path = f"{args.variable}_day_{args.model}_{args.experiment}_{args.run}_gn_{year}.nc"
+        versioned = base_path.replace(".nc", "_v1.1.nc")
+
+        for filename in [versioned, base_path]:
+            url = (
+                f"https://ds.nccs.nasa.gov/thredds/ncss/grid/AMES/NEX/GDDP-CMIP6/"
+                f"{args.model}/{args.experiment}/{args.run}/{args.variable}/{filename}" +
+                PARAMS.format(var=args.variable, year=year)
+            )
+            dest = out_root / filename
+            try:
+                download(url, dest)
+                files.append(dest)
+                break
+            except requests.HTTPError:
+                continue
+
     # Optional: preview merged dataset
-    ds = xr.open_mfdataset(files, concat_dim="time")
-    print("\nDataset loaded →", ds)
-    
+    if files:
+        ds = xr.open_mfdataset(files, concat_dim="time")
+        print("\nDataset loaded →", ds)
+
 if __name__ == "__main__":
     main()
-    
