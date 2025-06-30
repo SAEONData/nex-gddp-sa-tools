@@ -1,0 +1,13 @@
+city;city_ascii;lat;lng;country;iso2;iso3;admin_name;capital;population
+Johannesburg;Johannesburg;-26.2044;28.0456;South Africa;ZA;ZAF;Gauteng;admin;7860781
+Cape Town;Cape Town;-33.9253;18.4239;South Africa;ZA;ZAF;Western Cape;primary;4770313
+Pretoria;Pretoria;-25.7461;28.1881;South Africa;ZA;ZAF;Gauteng;primary;2818100
+Gqeberha;Gqeberha;-33.9581;25.6000;South Africa;ZA;ZAF;Eastern Cape;;967677
+Durban;Durban;-29.8833;31.0500;South Africa;ZA;ZAF;KwaZulu-Natal;;838634
+East London;East London;-33.0175;27.9047;South Africa;ZA;ZAF;Eastern Cape;;267007
+Bloemfontein;Bloemfontein;-29.1167;26.2167;South Africa;ZA;ZAF;Free State;primary;256185
+George;George;-33.9667;22.4500;South Africa;ZA;ZAF;Western Cape;;157394
+Polokwane;Polokwane;-23.9000;29.4500;South Africa;ZA;ZAF;Limpopo;admin;130028
+Knysna;Knysna;-34.0356;23.0489;South Africa;ZA;ZAF;Western Cape;;76150
+Nelspruit;Nelspruit;-25.4745;30.9703;South Africa;ZA;ZAF;Mpumalanga;admin;
+Gqeberha;Gqeberha;-33.9681;25.5981;South Africa;ZA;ZAF;Eastern Cape;;
