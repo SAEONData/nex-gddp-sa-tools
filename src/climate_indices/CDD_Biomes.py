@@ -5,56 +5,41 @@ cdd_biomes.py
 Calculate and plot CMIP6 maximum consecutive dry days (CDD)
 aggregated by South African vegetation biomes, with configurable
 thresholds and aggregation (annual, monthly, seasonal).
-
-To be executed via `run_climate_indices.py`, using config from
-`climate_indices_config.yml`.
 """
 
 from pathlib import Path
-import sys, glob
+import glob, time
 import numpy as np
 import pandas as pd
 import xarray as xr
 import geopandas as gpd
 import regionmask
 import matplotlib.pyplot as plt
-import yaml
+from xclim.core.indicator import registry
+from dask.diagnostics import ProgressBar
+import dask
+import warnings
+warnings.filterwarnings("ignore", message="Class CDD already exists and will be overwritten.")
 
-# 1. Max CDD helper
-def max_cdd(precip: xr.DataArray, thr: float = 1.0) -> xr.DataArray:
-    dry = (precip < thr).astype(int)
-
-    def run_len(arr):
-        pad  = np.concatenate(([0], arr, [0]))
-        diff = np.diff(pad)
-        starts = np.where(diff == 1)[0]
-        ends   = np.where(diff == -1)[0]
-        return (ends - starts).max() if starts.size else 0
-
-    return xr.apply_ufunc(
-        np.vectorize(run_len, signature="(t)->()"),
-        dry,
-        input_core_dims=[["time"]],
-        vectorize=True,
-        dask="parallelized",
-        output_dtypes=[int],
-    )
-
-# 2. Main entry point
 def run(cfg):
-    # ── Load parameters ──────────────────────────────────────────
+    start_time = time.time()
+    print("Starting CDD processing...")
+
+    # Config
     lat_bounds = [cfg["region"]["lat_min"], cfg["region"]["lat_max"]]
     lon_bounds = [cfg["region"]["lon_min"], cfg["region"]["lon_max"]]
     threshold  = cfg["cdd"].get("threshold_mm", 1.0)
     aggr       = cfg["cdd"].get("aggregation", "annual")
 
-    # ── Paths ────────────────────────────────────────────────────
+    aggr_map = {"monthly": "MS", "seasonal": "QS-DEC", "annual": "YS"}
+    aggr_code = aggr_map.get(aggr, "YS")
+
     ROOT       = Path(__file__).resolve().parents[2]
     DATA_DIR   = ROOT / "data" / "pr"
     SHAPEFILE  = ROOT / "climate_regions" / "cleaned_clim_reg_2025_06_30.shp"
     TOWNS_CSV  = ROOT / "cities" / "cities.csv"
 
-    # ── Read shapefile and prepare region mask ───────────────────
+    print(" Loading shapefile and region mask...")
     bioregions = gpd.read_file(SHAPEFILE).to_crs("EPSG:4326")
     region_mask = regionmask.Regions(
         outlines=bioregions.geometry,
@@ -63,57 +48,70 @@ def run(cfg):
         name="Bioregions",
     )
 
-    # ── Collect NetCDF files ─────────────────────────────────────
     nc_files = sorted(Path(p).resolve() for p in glob.glob(str(DATA_DIR / "**/historical/*.nc"), recursive=True))
-    print(f"Found {len(nc_files)} historical NetCDF files.")
+    print(f" Found {len(nc_files)} historical NetCDF files.\n")
 
-    model_data = []
-    model_names = []
+    model_data, model_names = [], []
 
-    # ── Process each NetCDF file ─────────────────────────────────
-    for nc_file in nc_files:
+    CDD = registry.get("CDD")
+    if CDD is None:
+        raise RuntimeError("❌ 'CDD' indicator not registered in xclim.")
+
+    for i, nc_file in enumerate(nc_files, 1):
+        print(f" [{i}/{len(nc_files)}] Processing: {nc_file.name}")
         try:
-            ds = xr.open_dataset(nc_file)
+            ds = xr.open_dataset(nc_file, chunks={"time": -1})
             ds = ds.sel(lat=slice(*lat_bounds), lon=slice(*lon_bounds))
-            pr = ds["pr"] * 86400.0  # kg/m²/s → mm/day
 
-            # Aggregation
-            if aggr == "monthly":
-                grouped = pr.resample(time="MS")
-            elif aggr == "seasonal":
-                grouped = pr.resample(time="QS-DEC")
-            else:
-                grouped = pr.resample(time="YE")
+            if "pr" not in ds:
+                raise ValueError("Missing 'pr' variable in dataset.")
 
-            cdd = grouped.map(lambda d: max_cdd(d, thr=threshold))
-            cdd_mean = cdd.mean(dim="time")
+            pr = ds["pr"] * 86400.0
+            pr.attrs["units"] = "mm/day"
 
-            # Region aggregation
+            try:
+                
+                cdd_instance = CDD()  # instantiate the indicator
+                pr.attrs["cell_methods"] = "time: mean"
+                pr.attrs["standard_name"] = "precipitation_flux"
+                cdd_result = cdd_instance(pr=pr, thresh=f"{threshold} mm/day", freq=aggr_code)
+                cdd_result = cdd_result.compute()
+
+                if cdd_result.isnull().all():
+                    raise ValueError("All CDD values are NaN.")
+
+                cdd_mean = cdd_result.mean(dim="time")
+            except Exception as cdd_err:
+                raise RuntimeError(f"❌ Failed during CDD calculation: {cdd_err}")
+
             mask_da = region_mask.mask(cdd_mean)
             reg_cdd = cdd_mean.groupby(mask_da).mean()
-            model_data.append(reg_cdd)
 
-            # Model name extraction
             try:
                 idx = nc_file.parts.index("historical")
-                model_names.append(nc_file.parts[idx - 1])
+                model_name = nc_file.parts[idx - 1]
             except ValueError:
-                model_names.append(nc_file.stem.split("_")[2])
+                model_name = nc_file.stem.split("_")[2]
 
-            print(f"Processed: {nc_file.name}")
+            model_data.append(reg_cdd)
+            model_names.append(model_name)
 
-        except Exception as exc:
-            print(f"Error processing {nc_file.name}: {exc}")
 
-    # ── Ensemble Mean ────────────────────────────────────────────
+        except Exception as e:
+            print(f"❌ Error processing {nc_file.name}: {e}\n")
+
     if not model_data:
-        raise RuntimeError("No datasets processed successfully.")
+        raise RuntimeError("❌ No datasets processed successfully.")
 
-    stack = xr.concat(model_data, dim="model")
+    print(" Computing ensemble means with Dask...")
+    with ProgressBar():
+        computed_data = dask.compute(*model_data)
+
+    print(" Stacking results and calculating ensemble mean...")
+    stack = xr.concat(computed_data, dim="model")
     stack["model"] = model_names
     ensemble_mean = stack.mean(dim="model")
 
-    # ── Print results ────────────────────────────────────────────
     df = pd.DataFrame({
         "Bioregion": region_mask.names,
         "Max_CDD_days": ensemble_mean.values,
@@ -122,14 +120,13 @@ def run(cfg):
     print("\n Max Consecutive Dry Days (CDD) – Ensemble Mean")
     print(df.to_string(index=False))
 
-    # ── Plotting ─────────────────────────────────────────────────
+    print("\n Generating plot...")
     bioregion_mean_df = pd.DataFrame({
         "Veg_Biome": region_mask.names,
         "Max_CDD_days": ensemble_mean.values,
     })
     merged = bioregions.merge(bioregion_mean_df, on="Veg_Biome")
 
-    # Cities overlay
     towns_df = pd.read_csv(TOWNS_CSV, sep=";").rename(columns=str.strip)
     towns_gdf = gpd.GeoDataFrame(
         towns_df,
@@ -167,3 +164,5 @@ def run(cfg):
     ax.set_axis_off()
     plt.tight_layout()
     plt.show()
+
+    print(f"\nFinished in {time.time() - start_time:.1f} seconds.")

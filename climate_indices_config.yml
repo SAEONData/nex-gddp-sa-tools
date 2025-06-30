@@ -18,6 +18,6 @@ cdd:
   threshold_mm: 1.0          # Threshold in mm/day (days with PR < this are considered "dry")
   aggregation: annual        # Options: 'annual', 'monthly', 'seasonal'
   output_units: days         # Typically 'days' (i.e., max length of dry spell)
-  # optional: true            # Uncomment if not required for every run
+  
 
 # ───────────── Add more indices below using the same structure ───────────── #

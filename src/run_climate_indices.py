@@ -12,6 +12,8 @@ from pathlib import Path
 import importlib
 import yaml
 
+
+print(f"Using Python interpreter: {sys.executable}")
 # 1. Locate project root and config file
 def find_root(start: Path, marker: str = "climate_indices_config.yml") -> Path:
     for parent in [start.resolve(), *start.resolve().parents]:
