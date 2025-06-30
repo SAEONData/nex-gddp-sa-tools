@@ -158,13 +158,6 @@ Each module:
 
 ## Requirements
 
-```
-requests>=2.31
-xarray>=2024.5
-netCDF4>=1.6
-pyyaml>=6.0        # NEW – parses YAML configs
-```
-
 Install / update:
 
 ```bash
