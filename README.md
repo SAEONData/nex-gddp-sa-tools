@@ -3,8 +3,9 @@ Helper scripts for exploring, downloading, and analysing **NASA NEX‑GDDP‑C
 
 * **Catalogue explorer** – list models, experiments, runs, variables  
 * **Bulk downloader** – fetch daily precipitation & temperature for a South‑Africa bounding box via YAML parameters  
-* **(Coming soon)** climate‑index calculator & ensemble aggregation
-
+* **Climate indices (modular)** – calculate CDD and other indices by vegetation biome via YAML configs and model ensemble  
+* **(Coming soon)** web visualisation & map export tools
+* 
 > **Data source**  
 > NASA Earth Exchange Global Daily Downscaled Projections (NEX‑GDDP‑CMIP6) served via NCCS THREDDS.
 
@@ -102,6 +103,56 @@ data/<variable>/<model>/<experiment>/<variable>_<year>.nc
 ```bash
 python src/download_sa_subset.py     --model ACCESS-CM2     --experiment historical     --variable pr     --start 2010 --end 2014
 ```
+
+---
+
+## 3  Climate indices (e.g. CDD)
+
+The `src/climate_indices/` folder contains modular scripts that compute climate indices using NEX‑GDDP data and aggregate them by **vegetation biome**, using region masks and shapefiles.
+
+### ✅ Currently implemented:
+- `CDD (Consecutive Dry Days)` – configurable threshold and time aggregation
+- `More indices coming soon...` (e.g. PRCPTOT, RX5day, TXx)
+
+---
+
+### a. Configure `climate_indices_config.yml`
+
+```yaml
+region:
+  lat_min: -35.0
+  lat_max: -20.0
+  lon_min: 16.0
+  lon_max: 33.0
+
+run_indices:
+  - cdd          # Add more indices like 'prcptot', 'rx5day', etc.
+
+cdd:
+  threshold_mm: 1.0       # Precip threshold (mm/day)
+  aggregation: annual     # Options: annual, monthly, seasonal
+  output_units: days
+```
+
+---
+
+### b. Run all configured indices
+
+```bash
+python src/run_climate_indices.py
+```
+
+Each index must be defined in a module named `<index>_biomes.py` with a `run(cfg)` function.
+
+Example:
+- CDD → `src/climate_indices/cdd_biomes.py`
+
+Each module:
+- Loads the shapefile (`cleaned_clim_reg_*.shp`)
+- Applies the region mask
+- Aggregates per model
+- Calculates ensemble means
+- Plots maps and prints regional results
 
 ---
 
