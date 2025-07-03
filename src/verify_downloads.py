@@ -38,6 +38,7 @@ def main():
     records = []
     chart_data = []
     per_exp_data = {}  # model → exp → [found, expected]
+    grand_total_files = 0
 
     for model in selected_models:
         if model not in per_exp_data:
@@ -55,6 +56,7 @@ def main():
 
                 total_expected += expected
                 total_found += found
+                grand_total_files += found
 
                 per_exp_data[model][exp]["found"] += found
                 per_exp_data[model][exp]["expected"] += expected
@@ -107,7 +109,8 @@ def main():
     scenario_pivot.to_csv(OUTPUT_DIR / "download_verification_by_scenario.csv")
 
     # ───── Output ─────
-    print("\nDownload Verification Summary per Variable\n")
+    print("\n📥 Total Files Downloaded:", grand_total_files)
+    print("\n📊 Download Verification Summary per Variable\n")
     print(df.to_string(index=False))
     print(f"\n✅ CSV saved to: {OUTPUT_DIR / 'download_verification_details.csv'}")
     print(f"✅ Scenario CSV saved to: {OUTPUT_DIR / 'download_verification_by_scenario.csv'}")
