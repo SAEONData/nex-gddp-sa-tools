@@ -3,7 +3,8 @@ Helper scripts for exploring, downloading, and analysing **NASA NEX‑GDDP‑C
 
 * **Catalogue explorer** – list models, experiments, runs, variables  
 * **Bulk downloader** – fetch daily precipitation & temperature for a South‑Africa bounding box via YAML parameters  
-* **Climate indices (modular)** – calculate CDD and other indices by vegetation biome via YAML configs and model ensemble  
+* **Climate indices (modular)** – calculate CDD and other indices by vegetation biome via YAML configs and model ensemble
+* **Download verification** – check how many NetCDFs have been downloaded and visualise % completeness   
 * **(Coming soon)** web visualisation & map export tools
 * 
 > **Data source**  
@@ -247,6 +248,38 @@ Each module:
 - Aggregates per model
 - Calculates ensemble means
 - Plots maps and prints regional results
+
+---
+
+## 4  Download verification summary  
+_Last update: **03 July 2025**_
+
+Automatically checks how many NetCDF files were successfully downloaded for each:
+- Model × Variable × Scenario  
+- Compared against expected time ranges
+- ✅ if all are complete
+- 🔴 if there are more files than expected - indicates possible diffrent versions
+- ⚠️ incomplete downloads   
+- Visualised as completeness 
+
+### ▶️ Run verification
+
+```bash
+python src/verify_downloads.py
+```
+
+Generates:
+- CSV summary tables
+
+Example (partial):
+
+```
+Model         Variable  historical (65)  ssp126 (85)  ssp245 (85)  ...  Total    Overall
+ACCESS-CM2    pr         ✅              ⚠️ 83/85      ⚠️ 12/85     ...  163/405   ⚠️
+ACCESS-CM2    tasmax     ✅              ⚠️ 82/85      ⚠️  0/85     ...  151/405   ⚠️
+ACCESS-CM2	  tasmin	   ✅	             🔴 87/86	      ⚠️ 0/86	     ... 152/409	  ⚠️
+...
+```
 
 ---
 
