@@ -256,7 +256,8 @@ _Last update: **03 July 2025**_
 
 Automatically checks how many NetCDF files were successfully downloaded for each:
 - Model × Variable × Scenario  
-- Compared against expected time ranges  
+- Compared against expected time ranges
+- if there are more files than expected - indicates possible diffrent versions  
 - Visualised as completeness 
 
 ### ▶️ Run verification
