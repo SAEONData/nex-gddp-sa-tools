@@ -277,7 +277,7 @@ Example (partial):
 Model         Variable  historical (65)  ssp126 (85)  ssp245 (85)  ...  Total    Overall
 ACCESS-CM2    pr         ✅              ⚠️ 83/85      ⚠️ 12/85     ...  163/405   ⚠️
 ACCESS-CM2    tasmax     ✅              ⚠️ 82/85      ⚠️  0/85     ...  151/405   ⚠️
-ACCESS-CM2	  tasmin	    ✅	          🔴 87/86	      ⚠️ 0/86	     ... 152/409	⚠️
+ACCESS-CM2	  tasmin	   ✅	             🔴 87/86	      ⚠️ 0/86	     ... 152/409	  ⚠️
 ...
 ```
 
