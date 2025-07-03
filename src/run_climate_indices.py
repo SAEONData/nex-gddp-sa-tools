@@ -48,6 +48,6 @@ for index in indices_to_run:
         print(f"\n Running index: {index.upper()} → {module_name}.py")
         module.run(cfg)
     except ImportError as e:
-        print(f"❌ Could not import module '{module_name}': {e}")
+        print(f"Could not import module '{module_name}': {e}")
     except Exception as e:
-        print(f"❌ Error running index '{index}': {e}")
+        print(f"Error running index '{index}': {e}")

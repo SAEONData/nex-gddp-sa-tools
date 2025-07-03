@@ -41,11 +41,34 @@ def run(cfg):
     nc_files = sorted(Path(p).resolve() for p in glob.glob(str(DATA_DIR / "**/historical/*.nc"), recursive=True))
     print(f" Found {len(nc_files)} historical NetCDF files.\n")
     
+    # ─── Check how many files exist per model ──────────────────────────────
+    print("Checking number of files per model...\n")
+    from collections import defaultdict
+    model_file_counts = defaultdict(int)
+    
+    for f in nc_files:
+        try:
+            idx = f.parts.index("historical")
+            model = f.parts[idx - 1]
+        except ValueError:
+            model = f.stem.split("_")[2]
+        model_file_counts[model] += 1
+        
+    expected_files_per_model = 1  # 🔧 Adjust if multiple files per model are expected
+    
+    print(f"{'Model':30} {'Files Found':>12} {'Status'}")
+    for model, count in sorted(model_file_counts.items()):
+        status = "✅" if count >= expected_files_per_model else "❌ MISSING"
+        print(f"{model:30} {count:12} {status}")
+    print("\n")
+    
     model_data, model_names = [], []
     
     CDD = registry.get("CDD")
     if CDD is None:
         raise RuntimeError("'CDD' indicator not registered in xclim.")
+        
+    
         
     for i, nc_file in enumerate(nc_files, 1):
         print(f" [{i}/{len(nc_files)}] Processing: {nc_file.name}")

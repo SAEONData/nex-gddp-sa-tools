@@ -19,7 +19,7 @@ region:
 
 time:
   # used only for 'historical'
-  start_year: 1949
+  start_year: 1950
   end_year: 2014
 
 models:
