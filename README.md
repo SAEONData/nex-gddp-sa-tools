@@ -257,7 +257,9 @@ _Last update: **03 July 2025**_
 Automatically checks how many NetCDF files were successfully downloaded for each:
 - Model × Variable × Scenario  
 - Compared against expected time ranges
-- if there are more files than expected - indicates possible diffrent versions  
+- ✅ if all are complete
+- 🔴 if there are more files than expected - indicates possible diffrent versions
+- ⚠️ incomplete downloads   
 - Visualised as completeness 
 
 ### ▶️ Run verification
@@ -275,6 +277,7 @@ Example (partial):
 Model         Variable  historical (65)  ssp126 (85)  ssp245 (85)  ...  Total    Overall
 ACCESS-CM2    pr         ✅              ⚠️ 83/85      ⚠️ 12/85     ...  163/405   ⚠️
 ACCESS-CM2    tasmax     ✅              ⚠️ 82/85      ⚠️  0/85     ...  151/405   ⚠️
+ACCESS-CM2	  tasmin	    ✅	          🔴 87/86	      ⚠️ 0/86	     ... 152/409	⚠️
 ...
 ```
 
