@@ -109,12 +109,20 @@ def main():
     scenario_pivot.to_csv(OUTPUT_DIR / "download_verification_by_scenario.csv")
 
     # ───── Output ─────
-    print("\n📥 Total Files Downloaded:", grand_total_files)
+    
     print("\n📊 Download Verification Summary per Variable\n")
     print(df.to_string(index=False))
     print(f"\n✅ CSV saved to: {OUTPUT_DIR / 'download_verification_details.csv'}")
     print(f"✅ Scenario CSV saved to: {OUTPUT_DIR / 'download_verification_by_scenario.csv'}")
-
+    
+    # ───── Overall Summary ─────
+    total_found_all = sum(per_exp_data[m][e]["found"] for m in per_exp_data for e in per_exp_data[m])
+    total_expected_all = sum(per_exp_data[m][e]["expected"] for m in per_exp_data for e in per_exp_data[m])
+    overall_percent = (total_found_all / total_expected_all * 100) if total_expected_all > 0 else 0
+    
+    print("\n📥 Total Files Downloaded:", total_found_all)
+    print("📦 Total Expected Files:", total_expected_all)
+    print(f"📈 Overall Completion: {overall_percent:.2f}%")
 
 if __name__ == "__main__":
     main()
