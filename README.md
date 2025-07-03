@@ -84,7 +84,7 @@ _Last update: **03 July 2025**_
 1. **Edit the config:**
 
    ```bash
-   vim download_config.yml   # now lists all 35 models, default + exceptions for grid_label, and time_ranges
+   vim download_config.yml   #Lists models, default + exceptions for grid_label, and time_ranges
 
 1. **Edit the config:**
 
