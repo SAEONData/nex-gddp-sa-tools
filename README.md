@@ -77,7 +77,14 @@ python src/nex_gddp_catalog.py files ACCESS-CM2 historical r1i1p1f1 pr
 ```
 ---
 
-## 2  Bulk download with YAML config
+## 2  Bulk download with YAML config
+_Last update: **03 July 2025**_
+> **Note:** `download_config.yml` has been extended to include **all models relevant to this project**, plus a `grid_label_default` and per-model `grid_labels` map to handle GN/GR/GR1/GR2 naming, and per-experiment time ranges (historical 1949–2014, SSPs 2015–2100).
+
+1. **Edit the config:**
+
+   ```bash
+   vim download_config.yml   # now lists all 35 models, default + exceptions for grid_label, and time_ranges
 
 1. **Edit the config:**
 
