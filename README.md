@@ -156,8 +156,8 @@ models:
     - ACCESS-CM2
     - ACCESS-ESM1-5
     - BCC-CSM2-MR
-#   - CESM2
-#   - CESM2-WACCM
+    #- CESM2
+    #- CESM2-WACCM
     - CMCC-CM2-SR5
     - CMCC-ESM2
     #- CNRM-CM6-1
@@ -207,18 +207,18 @@ grid_labels:
 experiments:
   select:
     - historical
-#   - ssp126
-#   - ssp245
-#   - ssp370
-#   - ssp585
+    - ssp126
+    - ssp245
+    - ssp370
+    - ssp585
 
   # define per-experiment time spans
   time_ranges:
     historical: [1950, 2014]
-#   ssp126:     [2015, 2100]
-#   ssp245:     [2015, 2100]
-#   ssp370:     [2015, 2100]
-#   ssp585:     [2015, 2100]
+    ssp126:     [2015, 2100]
+    ssp245:     [2015, 2100]
+    ssp370:     [2015, 2100]
+    ssp585:     [2015, 2100]
 
 variables:
   daily:
