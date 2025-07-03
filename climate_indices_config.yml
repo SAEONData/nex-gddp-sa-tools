@@ -3,8 +3,15 @@
 # Use this file to configure spatial bounds, index parameters,
 # and general settings for running climate index calculations.
 # ─────────────────────────────────────────────────────────────
+experiments:
+  select: ["historical"]
+  
+#experiments:
+# select: ["historical", "ssp126", "ssp245", "ssp370", "ssp585"]
+
 run_indices:
 - cdd
+- cwd
 
 region:
   # Spatial bounding box for subsetting climate model data
@@ -14,6 +21,12 @@ region:
   lon_max: 33.0        # Easternmost longitude
 
 cdd:
+  # Consecutive Dry Days index (CDD)
+  threshold_mm: 1.0          # Threshold in mm/day (days with PR < this are considered "dry")
+  aggregation: annual        # Options: 'annual', 'monthly', 'seasonal'
+  output_units: days         # Typically 'days' (i.e., max length of dry spell)
+  
+cwd:
   # Consecutive Dry Days index (CDD)
   threshold_mm: 1.0          # Threshold in mm/day (days with PR < this are considered "dry")
   aggregation: annual        # Options: 'annual', 'monthly', 'seasonal'
