@@ -1,7 +1,8 @@
-# download_config_template.yml
+# download_config.yml
 # --------------------------------------------------------------------
-# Parameters controlling what to DOWNLOAD from NEX‑GDDP‑CMIP6.
-# Copy to download_config.yml and edit as required.
+# Parameters controlling what to DOWNLOAD from NEX-GDDP-CMIP6.
+# Copy this into your repo (overwrite download_config_template.yml),
+# then edit as required.
 # --------------------------------------------------------------------
 meta:
   owner: "SAEON Climate Team"
@@ -17,22 +18,78 @@ region:
   stride: 1        # 1 = native 0.25°, 2 = every second grid cell
 
 time:
+  # used only for 'historical'
   start_year: 1949
   end_year: 2014
 
 models:
-  select: ["ACCESS-CM2", "ACCESS-ESM1-5", "BCC-CSM2-MR", "CESM2", "CESM2-WACCM",
-"CMCC-CM2-SR5", "CMCC-ESM2", "CNRM-CM6-1", "CNRM-ESM2-1", "CanESM5",
-"EC-Earth3", "EC-Earth3-Veg-LR", "FGOALS-g3", "GFDL-CM4", "GFDL-CM4_gr2",
-"GFDL-ESM4", "GISS-E2-1-G", "HadGEM3-GC31-LL", "HadGEM3-GC31-MM", "IITM-ESM",
-"INM-CM4-8", "INM-CM5-0", "IPSL-CM6A-LR", "KACE-1-0-G", "KIOST-ESM",
-"MIROC-ES2L", "MIROC6", "MPI-ESM1-2-HR", "MPI-ESM1-2-LR", "MRI-ESM2-0",
-"NESM3", "NorESM2-LM", "NorESM2-MM", "TaiESM1", "UKESM1-0-LL"]
-# select: ["ACCESS-CM2"]
+  select:
+    - ACCESS-CM2
+    - ACCESS-ESM1-5
+    - BCC-CSM2-MR
+    - CESM2
+    - CESM2-WACCM
+    - CMCC-CM2-SR5
+    - CMCC-ESM2
+    - CNRM-CM6-1
+    - CNRM-ESM2-1
+    - CanESM5
+    - EC-Earth3
+    - EC-Earth3-Veg-LR
+    - FGOALS-g3
+    - GFDL-CM4
+    - GFDL-CM4_gr2
+    - GFDL-ESM4
+    - GISS-E2-1-G
+    - HadGEM3-GC31-LL
+    - HadGEM3-GC31-MM
+    - IITM-ESM
+    - INM-CM4-8
+    - INM-CM5-0
+    - IPSL-CM6A-LR
+    - KACE-1-0-G
+    - KIOST-ESM
+    - MIROC6
+    - MPI-ESM1-2-HR
+    - MPI-ESM1-2-LR
+    - MRI-ESM2-0
+    - NESM3
+    - NorESM2-LM
+    - NorESM2-MM
+    - TaiESM1
+    - UKESM1-0-LL
+
+# default grid label if a model is not overridden below
+grid_label_default: gn
+
+# per-model grid-label overrides
+grid_labels:
+  EC-Earth3: gr
+  EC-Earth3-Veg-LR: gr
+  GFDL-CM4: gr1
+  GFDL-CM4_gr2: gr2
+  GFDL-ESM4: gr1
+  INM-CM4-8: gr1
+  INM-CM5-0: gr1
+  IPSL-CM6A-LR: gr
+  KACE-1-0-G: gr
+  KIOST-ESM: gr1
 
 experiments:
-  select: ["historical", "ssp126", "ssp245", "ssp370", "ssp585"]
-# select: ["historical"]
+  select:
+    - historical
+    - ssp126
+    - ssp245
+    - ssp370
+    - ssp585
+
+  # define per-experiment time spans
+  time_ranges:
+    historical: [1949, 2014]
+    ssp126:     [2015, 2100]
+    ssp245:     [2015, 2100]
+    ssp370:     [2015, 2100]
+    ssp585:     [2015, 2100]
 
 variables:
   daily:
