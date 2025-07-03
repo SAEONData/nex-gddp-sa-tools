@@ -4,11 +4,10 @@ import yaml
 from pathlib import Path
 import glob
 import pandas as pd
-import matplotlib.pyplot as plt
 
 
 def count_expected_files(start, end):
-    return end - start  # assuming 1 file per year
+    return end - start + 1  # inclusive of both start and end
 
 
 def main():
@@ -60,11 +59,23 @@ def main():
                 per_exp_data[model][exp]["found"] += found
                 per_exp_data[model][exp]["expected"] += expected
 
-                status = "✅" if found == expected else f"⚠️ {found}/{expected}"
+                if found == expected:
+                    status = "✅"
+                elif found < expected:
+                    status = f"⚠️ {found}/{expected}"
+                else:
+                    status = f"🔴 {found}/{expected}"
+
                 row[f"{exp} ({expected})"] = status
 
             row["Total"] = f"{total_found}/{total_expected}"
-            row["Overall"] = "✅" if total_found == total_expected else "⚠️"
+            if total_found == total_expected:
+                row["Overall"] = "✅"
+            elif total_found > total_expected:
+                row["Overall"] = "🔴"
+            else:
+                row["Overall"] = "⚠️"
+
             records.append(row)
 
             percent = (total_found / total_expected) * 100 if total_expected > 0 else 0
@@ -77,7 +88,6 @@ def main():
     # ───── Save variable-level CSV ─────
     df = pd.DataFrame(records)
     df.to_csv(OUTPUT_DIR / "download_verification_details.csv", index=False)
-
 
     # ───── Scenario-based summary ─────
     scenario_records = []
@@ -96,13 +106,12 @@ def main():
     scenario_pivot = scenario_df.pivot(index="Model", columns="Scenario", values="Percent Complete").fillna(0)
     scenario_pivot.to_csv(OUTPUT_DIR / "download_verification_by_scenario.csv")
 
-
     # ───── Output ─────
     print("\nDownload Verification Summary per Variable\n")
     print(df.to_string(index=False))
-    print(f"\nCSV saved to: {OUTPUT_DIR / 'download_verification_summary.csv'}")
-    print(f"Scenario CSV saved to: {OUTPUT_DIR / 'download_verification_by_scenario.csv'}")
-    
+    print(f"\n✅ CSV saved to: {OUTPUT_DIR / 'download_verification_details.csv'}")
+    print(f"✅ Scenario CSV saved to: {OUTPUT_DIR / 'download_verification_by_scenario.csv'}")
+
 
 if __name__ == "__main__":
     main()

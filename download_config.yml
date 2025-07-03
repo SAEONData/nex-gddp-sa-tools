@@ -85,7 +85,7 @@ experiments:
 
   # define per-experiment time spans
   time_ranges:
-    historical: [1949, 2014]
+    historical: [1950, 2014]
     ssp126:     [2015, 2100]
     ssp245:     [2015, 2100]
     ssp370:     [2015, 2100]
