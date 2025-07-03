@@ -4,8 +4,8 @@
 # and general settings for running climate index calculations.
 # ─────────────────────────────────────────────────────────────
 run_indices:
-  - cdd
-  
+- cdd
+
 region:
   # Spatial bounding box for subsetting climate model data
   lat_min: -35.0       # Southernmost latitude
@@ -18,6 +18,3 @@ cdd:
   threshold_mm: 1.0          # Threshold in mm/day (days with PR < this are considered "dry")
   aggregation: annual        # Options: 'annual', 'monthly', 'seasonal'
   output_units: days         # Typically 'days' (i.e., max length of dry spell)
-  
-
-# ───────────── Add more indices below using the same structure ───────────── #

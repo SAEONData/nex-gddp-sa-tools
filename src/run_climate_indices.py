@@ -4,7 +4,7 @@ run_climate_indices.py
 ---------------------------------------------------
 Loads config and executes selected climate indices.
 Each index should be implemented in its own module,
-named <index>_biomes.py with a run(cfg) function.
+named <index>_compute.py with a compute(cfg) function.
 """
 
 import sys
@@ -12,8 +12,8 @@ from pathlib import Path
 import importlib
 import yaml
 
-
 print(f"Using Python interpreter: {sys.executable}")
+
 # 1. Locate project root and config file
 def find_root(start: Path, marker: str = "climate_indices_config.yml") -> Path:
     for parent in [start.resolve(), *start.resolve().parents]:
@@ -40,14 +40,14 @@ if not indices_to_run:
     print("No indices specified in 'run_indices'. Exiting.")
     sys.exit(0)
 
-# 4. Dynamically import and run each index
+# 4. Dynamically import and run each index module
 for index in indices_to_run:
-    module_name = f"{index}_biomes"  # e.g., "cdd_biomes"
+    module_name = f"{index}_compute"  # e.g., "cdd_compute"
     try:
         module = importlib.import_module(module_name)
         print(f"\n Running index: {index.upper()} → {module_name}.py")
         module.run(cfg)
     except ImportError as e:
-        print(f"Could not import module '{module_name}': {e}")
+        print(f"❌ Could not import module '{module_name}': {e}")
     except Exception as e:
-        print(f"Error running index '{index}': {e}")
+        print(f"❌ Error running index '{index}': {e}")
