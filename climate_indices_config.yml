@@ -10,8 +10,9 @@ experiments:
 # select: ["historical", "ssp126", "ssp245", "ssp370", "ssp585"]
 
 run_indices:
-- cdd
-- cwd
+#- cdd
+#- cwd
+- r10mm
 
 region:
   # Spatial bounding box for subsetting climate model data
@@ -31,3 +32,7 @@ cwd:
   threshold_mm: 1.0          # Threshold in mm/day (days with PR < this are considered "dry")
   aggregation: annual        # Options: 'annual', 'monthly', 'seasonal'
   output_units: days         # Typically 'days' (i.e., max length of dry spell)
+  
+r10mm:
+  threshold_mm: 10.0
+  aggregation: annual
