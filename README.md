@@ -3,7 +3,7 @@ Helper scripts for exploring, downloading, and analysing **NASA NEX‑GDDP‑C
 
 * **Catalogue explorer** – list models, experiments, runs, variables  
 * **Bulk downloader** – fetch daily precipitation & temperature for a South‑Africa bounding box via YAML parameters  
-* **Climate indices (modular)** – calculate CDD and other indices by vegetation biome via YAML configs and model ensemble
+* **Climate indices (modular)** – calculate indices via YAML configs and model ensemble
 * **Download verification** – check how many NetCDFs have been downloaded and visualise % completeness   
 * **(Coming soon)** web visualisation & map export tools
 * 
@@ -120,9 +120,31 @@ The `src/climate_indices/` folder contains modular scripts that compute climate 
 
 ### ✅ Currently implemented:
 - `CDD (Consecutive Dry Days)` – configurable threshold and time aggregation
-- `More indices coming soon...` (e.g. PRCPTOT, RX5day, TXx)
+- `R10mm`, `R20mm`, `PRCPTOT`, `R95pTOT`, etc.  (see table below)
+- `More temperature-based indices coming soon...`
 
 ---
+
+### 📋 Table 4. List of relevant Climpact indices used in precipitation trend analysis
+| Short name | Long name                         | Definition                                 | Plain language description                                 | Units   | Sector(s)         |
+|------------|------------------------------------|--------------------------------------------|-------------------------------------------------------------|---------|-------------------|
+| CDD        | Consecutive Dry Days               | Max # of consecutive days with PR < 1 mm   | Longest dry spell                                            | days    | H, AFS, WRH       |
+| R10mm      | Heavy rain days                    | Days when PR ≥ 10 mm                       | Days with at least 10 mm rain                               | days    | All               |
+| R20mm      | Very heavy rain days               | Days when PR ≥ 20 mm                       | Days with at least 20 mm rain                               | days    | AFS, WRH          |
+| PRCPTOT    | Total wet-day PR                   | Sum of daily PR ≥ 1 mm                     | Total rainfall from wet days                                | mm      | AFS, WRH          |
+| R95pTOT    | Very wet day contribution          | 100 × R95p / PRCPTOT                       | % of rainfall from days above 95th percentile               | %       | AFS, WRH          |
+| R99pTOT    | Extremely wet day contribution     | 100 × R99p / PRCPTOT                       | % of rainfall from days above 99th percentile               | %       | AFS, WRH          |
+| SPI        | Standardised Precipitation Index   | Standardised precipitation deficit measure | Drought severity on 3/6/12-month time scales                | –       | H, AFS, WRH       |
+| CWD        | Consecutive Wet Days               | Max # of consecutive days with PR ≥ 1 mm   | Longest wet spell                                            | days    | All               |
+| SDII       | Simple daily intensity index       | Total PR / # wet days (PR ≥ 1 mm)          | Avg. rainfall intensity on wet days                         | mm/day  | All               |
+| R95p       | Total rainfall from very wet days  | Sum of daily PR > 95th percentile          | Total rainfall from very wet days                           | mm      | All               |
+| R99p       | Total rainfall from extreme days   | Sum of daily PR > 99th percentile          | Total rainfall from extremely wet days                      | mm      | All               |
+| Rx1day     | Max 1-day precipitation            | Max daily PR total                         | Most rainfall on a single day                               | mm      | All               |
+| Rx5day     | Max 5-day precipitation            | Max 5-day PR total                         | Most rainfall over 5 consecutive days                       | mm      | All               |
+
+---
+
+
 
 ### a. Configure `climate_indices_config.yml`
 
