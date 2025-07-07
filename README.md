@@ -3,8 +3,9 @@ Helper scripts for exploring, downloading, and analysing **NASA NEX‑GDDP‑C
 
 * **Catalogue explorer** – list models, experiments, runs, variables  
 * **Bulk downloader** – fetch daily precipitation & temperature for a South‑Africa bounding box via YAML parameters  
-* **Climate indices (modular)** – calculate CDD and other indices by vegetation biome via YAML configs and model ensemble
-* **Download verification** – check how many NetCDFs have been downloaded and visualise % completeness   
+
+* **Download verification** – check how many NetCDFs have been downloaded and visualise % completeness
+* **Climate indices (modular)** – calculate indices via YAML configs and model ensemble   
 * **(Coming soon)** web visualisation & map export tools
 * 
 > **Data source**  
@@ -114,15 +115,9 @@ python src/download_sa_subset.py     --model ACCESS-CM2     --experiment histori
 
 ---
 
-## 3  Climate indices (e.g. CDD)
 
-The `src/climate_indices/` folder contains modular scripts that compute climate indices using NEX‑GDDP data and aggregate them by **vegetation biome**, using region masks and shapefiles.
 
-### ✅ Currently implemented:
-- `CDD (Consecutive Dry Days)` – configurable threshold and time aggregation
-- `More indices coming soon...` (e.g. PRCPTOT, RX5day, TXx)
 
----
 
 ### a. Configure `climate_indices_config.yml`
 
@@ -231,27 +226,8 @@ run: "r1i1p1f1"    # ensemble member
 
 ---
 
-### b. Run all configured indices
 
-```bash
-python src/run_climate_indices.py
-```
-
-Each index must be defined in a module named `<index>_biomes.py` with a `run(cfg)` function.
-
-Example:
-- CDD → `src/climate_indices/cdd_biomes.py`
-
-Each module:
-- Loads the shapefile (`cleaned_clim_reg_*.shp`)
-- Applies the region mask
-- Aggregates per model
-- Calculates ensemble means
-- Plots maps and prints regional results
-
----
-
-## 4  Download verification summary  
+## 3  Download verification summary  
 _Last update: **03 July 2025**_
 
 Automatically checks how many NetCDF files were successfully downloaded for each:
@@ -281,6 +257,37 @@ ACCESS-CM2    tasmax     ✅                ⚠️ 82/85       ⚠️  0/85     
 ACCESS-CM2    tasmin     ✅                🔴 87/86       ⚠️  0/86       ⚠️ 0/86        ⚠️ 0/86        152/409   ⚠️
 ...
 ```
+
+---
+
+## 4  Climate indices (e.g. CDD)
+
+The `src/climate_indices/` folder contains modular scripts that compute climate indices using NEX‑GDDP data and aggregate them by **vegetation biome**, using region masks and shapefiles.
+
+### ✅ Currently implemented:
+- `CDD (Consecutive Dry Days)` – configurable threshold and time aggregation
+- `R10mm`, `R20mm`, `PRCPTOT`, `R95pTOT`, etc.  (see table below)
+- `More temperature-based indices coming soon...`
+
+---
+
+
+### 📋 List of relevant Climpact indices used in precipitation trend analysis
+| Short name | Long name                         | Definition                                 | Plain language description                                 | Units   | 
+|------------|------------------------------------|--------------------------------------------|-------------------------------------------------------------|---------|
+| CDD        | Consecutive Dry Days               | Max # of consecutive days with PR < 1 mm   | Longest dry spell                                            | days    | 
+| R10mm      | Heavy rain days                    | Days when PR ≥ 10 mm                       | Days with at least 10 mm rain                               | days    | 
+| R20mm      | Very heavy rain days               | Days when PR ≥ 20 mm                       | Days with at least 20 mm rain                               | days    |
+| PRCPTOT    | Total wet-day PR                   | Sum of daily PR ≥ 1 mm                     | Total rainfall from wet days                                | mm      | 
+| R95pTOT    | Very wet day contribution          | 100 × R95p / PRCPTOT                       | % of rainfall from days above 95th percentile               | %       |
+| R99pTOT    | Extremely wet day contribution     | 100 × R99p / PRCPTOT                       | % of rainfall from days above 99th percentile               | %       |
+| SPI        | Standardised Precipitation Index   | Standardised precipitation deficit measure | Drought severity on 3/6/12-month time scales                | –       | 
+| CWD        | Consecutive Wet Days               | Max # of consecutive days with PR ≥ 1 mm   | Longest wet spell                                            | days    |
+| SDII       | Simple daily intensity index       | Total PR / # wet days (PR ≥ 1 mm)          | Avg. rainfall intensity on wet days                         | mm/day  |
+| R95p       | Total rainfall from very wet days  | Sum of daily PR > 95th percentile          | Total rainfall from very wet days                           | mm      |
+| R99p       | Total rainfall from extreme days   | Sum of daily PR > 99th percentile          | Total rainfall from extremely wet days                      | mm      | 
+| Rx1day     | Max 1-day precipitation            | Max daily PR total                         | Most rainfall on a single day                               | mm      | 
+| Rx5day     | Max 5-day precipitation            | Max 5-day PR total                         | Most rainfall over 5 consecutive days                       | mm      | 
 
 ---
 
