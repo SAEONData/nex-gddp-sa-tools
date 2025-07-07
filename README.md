@@ -271,7 +271,7 @@ The `src/climate_indices/` folder contains modular scripts that compute climate 
 
 ---
 
-### 📋 Table 4. List of relevant Climpact indices used in precipitation trend analysis
+### 📋 List of relevant Climpact indices used in precipitation trend analysis
 | Short name | Long name                         | Definition                                 | Plain language description                                 | Units   | 
 |------------|------------------------------------|--------------------------------------------|-------------------------------------------------------------|---------|
 | CDD        | Consecutive Dry Days               | Max # of consecutive days with PR < 1 mm   | Longest dry spell                                            | days    | 
