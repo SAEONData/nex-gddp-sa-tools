@@ -271,6 +271,7 @@ The `src/climate_indices/` folder contains modular scripts that compute climate 
 
 ---
 
+
 ### 📋 List of relevant Climpact indices used in precipitation trend analysis
 | Short name | Long name                         | Definition                                 | Plain language description                                 | Units   | 
 |------------|------------------------------------|--------------------------------------------|-------------------------------------------------------------|---------|
