@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """
-r10mm_compute.py
+prcptot_compute.py
 ---------------------------------------------------------------
-Calculate and save CMIP6 R10mm: number of days with ≥10 mm rain.
+Calculate and save CMIP6 PRCPTOT: total rainfall on wet days (≥1 mm/day).
 Supports multiple experiments and aggregation levels.
 """
 
@@ -12,26 +12,28 @@ import time
 import numpy as np
 import xarray as xr
 from xclim.indices import wetdays
+from xclim.core.units import convert_units_to
 from dask.diagnostics import ProgressBar
 import dask
 import warnings
+
 warnings.filterwarnings("ignore", message=".*already exists and will be overwritten.")
 
 def run(cfg):
     start_time = time.time()
-    print("Starting R10mm processing...")
+    print("Starting PRCPTOT processing...")
 
     lat_bounds = [cfg["region"]["lat_min"], cfg["region"]["lat_max"]]
     lon_bounds = [cfg["region"]["lon_min"], cfg["region"]["lon_max"]]
 
-    threshold = cfg.get("r10mm", {}).get("threshold_mm", 10.0)
-    aggr      = cfg.get("r10mm", {}).get("aggregation", "annual")
+    threshold = cfg.get("prcptot", {}).get("threshold_mm", 1.0)
+    aggr      = cfg.get("prcptot", {}).get("aggregation", "annual")
     aggr_map  = {"monthly": "MS", "seasonal": "QS-DEC", "annual": "YS"}
     aggr_code = aggr_map.get(aggr, "YS")
 
     ROOT       = Path(__file__).resolve().parents[2]
     DATA_DIR   = ROOT / "data" / "pr"
-    OUTPUT_DIR = ROOT / "data" / "outputs" / "r10mm"
+    OUTPUT_DIR = ROOT / "data" / "outputs" / "prcptot"
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 
     experiments = cfg.get("experiments", {}).get("select", ["historical"])
@@ -40,7 +42,7 @@ def run(cfg):
     model_file_counts = defaultdict(lambda: defaultdict(int))
 
     for experiment in experiments:
-        print(f"\nProcessing scenario: {experiment}")
+        print(f"\n📁 Processing scenario: {experiment}")
         nc_files = sorted(Path(p).resolve() for p in glob.glob(str(DATA_DIR / f"**/{experiment}/*.nc"), recursive=True))
         print(f" Found {len(nc_files)} NetCDF files for '{experiment}'.\n")
 
@@ -55,20 +57,25 @@ def run(cfg):
                 if "pr" not in ds:
                     raise ValueError("Missing 'pr' variable in dataset.")
 
-                pr = ds["pr"] * 86400.0  # Convert kg/m²/s to mm/day
+                # Convert to mm/day and update attributes
+                pr = convert_units_to(ds["pr"], "mm/day")
                 pr.attrs.update({
                     "units": "mm/day",
-                    "cell_methods": "time: mean",
-                    "standard_name": "precipitation_flux"
+                    "standard_name": "precipitation_flux",
+                    "long_name": "Precipitation",
+                    "cell_methods": "time: mean"
                 })
 
-                # Compute R10mm using xclim.indices.wetdays
-                r10_result = wetdays(pr=pr, thresh=f"{threshold} mm/day", freq=aggr_code).compute()
+                # Mask out non-wet days (pr < threshold)
+                pr_masked = pr.where(pr >= threshold)
 
-                if r10_result.isnull().all():
-                    raise ValueError("All R10mm values are NaN.")
+                # Resample and sum only over wet days
+                prcptot = pr_masked.resample(time=aggr_code).sum(dim="time").compute()
 
-                r10_mean = r10_result.mean(dim="time")
+                if prcptot.isnull().all():
+                    raise ValueError("All PRCPTOT values are NaN.")
+
+                prcptot_mean = prcptot.mean(dim="time")
 
                 try:
                     idx = nc_file.parts.index(experiment)
@@ -77,7 +84,7 @@ def run(cfg):
                     model_name = nc_file.stem.split("_")[2]
 
                 model_file_counts[model_name][experiment] += 1
-                model_data.append(r10_mean)
+                model_data.append(prcptot_mean)
                 model_names.append(model_name)
 
             except Exception as e:
@@ -87,7 +94,6 @@ def run(cfg):
             print(f"⚠️ No successful files for {experiment}. Skipping ensemble.")
             continue
 
-        # ───── Ensemble Mean ─────
         print(" Computing ensemble mean...")
         with ProgressBar():
             computed_data = dask.compute(*model_data)
@@ -95,23 +101,23 @@ def run(cfg):
             stack["model"] = model_names
             ensemble_mean = stack.mean(dim="model")
 
-        out_nc = OUTPUT_DIR / f"r10mm_ensemble_mean_{experiment}.nc"
+        out_nc = OUTPUT_DIR / f"prcptot_ensemble_mean_{experiment}.nc"
         unique_models = sorted(set(model_names))
         ds_out = xr.Dataset(
-            {"r10mm": ensemble_mean},
+            {"prcptot": ensemble_mean},
             attrs={
-                "title": f"Ensemble Mean of R10mm (Days ≥ {threshold} mm Rain) - {experiment}",
+                "title": f"Ensemble Mean of PRCPTOT (Rainfall ≥ {threshold} mm/day) - {experiment}",
                 "description": f"Aggregation: {aggr}, Threshold: {threshold} mm/day",
-                "units": "days",
+                "units": "mm",
                 "models_included": ", ".join(unique_models),
-                "created_by": "R10mm processing script",
+                "created_by": "PRCPTOT processing script",
             }
         )
 
         ds_out.to_netcdf(out_nc)
         print(f"✅ Saved ensemble NetCDF → {out_nc}")
 
-    print("\nFile summary per model/scenario:")
+    print("\n📊 File summary per model/scenario:")
     for model, exp_data in sorted(model_file_counts.items()):
         row = f"{model:30}"
         for exp in experiments:
@@ -119,4 +125,4 @@ def run(cfg):
             row += f" {exp}: {count:2d}"
         print(row)
 
-    print(f"\nCompleted in {round(time.time() - start_time, 1)} seconds.")
+    print(f"\n⏱️ Completed in {round(time.time() - start_time, 1)} seconds.")

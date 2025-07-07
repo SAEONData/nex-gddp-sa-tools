@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """
-r10mm_compute.py
+r20mm_compute.py
 ---------------------------------------------------------------
-Calculate and save CMIP6 R10mm: number of days with ≥10 mm rain.
+Calculate and save CMIP6 R20mm: number of days with ≥20 mm rain.
 Supports multiple experiments and aggregation levels.
 """
 
@@ -19,19 +19,19 @@ warnings.filterwarnings("ignore", message=".*already exists and will be overwrit
 
 def run(cfg):
     start_time = time.time()
-    print("Starting R10mm processing...")
+    print("Starting R20mm processing...")
 
     lat_bounds = [cfg["region"]["lat_min"], cfg["region"]["lat_max"]]
     lon_bounds = [cfg["region"]["lon_min"], cfg["region"]["lon_max"]]
 
-    threshold = cfg.get("r10mm", {}).get("threshold_mm", 10.0)
-    aggr      = cfg.get("r10mm", {}).get("aggregation", "annual")
+    threshold = cfg.get("r20mm", {}).get("threshold_mm", 20.0)
+    aggr      = cfg.get("r20mm", {}).get("aggregation", "annual")
     aggr_map  = {"monthly": "MS", "seasonal": "QS-DEC", "annual": "YS"}
     aggr_code = aggr_map.get(aggr, "YS")
 
     ROOT       = Path(__file__).resolve().parents[2]
     DATA_DIR   = ROOT / "data" / "pr"
-    OUTPUT_DIR = ROOT / "data" / "outputs" / "r10mm"
+    OUTPUT_DIR = ROOT / "data" / "outputs" / "r20mm"
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 
     experiments = cfg.get("experiments", {}).get("select", ["historical"])
@@ -62,13 +62,12 @@ def run(cfg):
                     "standard_name": "precipitation_flux"
                 })
 
-                # Compute R10mm using xclim.indices.wetdays
-                r10_result = wetdays(pr=pr, thresh=f"{threshold} mm/day", freq=aggr_code).compute()
+                r20_result = wetdays(pr=pr, thresh=f"{threshold} mm/day", freq=aggr_code).compute()
 
-                if r10_result.isnull().all():
-                    raise ValueError("All R10mm values are NaN.")
+                if r20_result.isnull().all():
+                    raise ValueError("All R20mm values are NaN.")
 
-                r10_mean = r10_result.mean(dim="time")
+                r20_mean = r20_result.mean(dim="time")
 
                 try:
                     idx = nc_file.parts.index(experiment)
@@ -77,7 +76,7 @@ def run(cfg):
                     model_name = nc_file.stem.split("_")[2]
 
                 model_file_counts[model_name][experiment] += 1
-                model_data.append(r10_mean)
+                model_data.append(r20_mean)
                 model_names.append(model_name)
 
             except Exception as e:
@@ -87,7 +86,6 @@ def run(cfg):
             print(f"⚠️ No successful files for {experiment}. Skipping ensemble.")
             continue
 
-        # ───── Ensemble Mean ─────
         print(" Computing ensemble mean...")
         with ProgressBar():
             computed_data = dask.compute(*model_data)
@@ -95,16 +93,16 @@ def run(cfg):
             stack["model"] = model_names
             ensemble_mean = stack.mean(dim="model")
 
-        out_nc = OUTPUT_DIR / f"r10mm_ensemble_mean_{experiment}.nc"
+        out_nc = OUTPUT_DIR / f"r20mm_ensemble_mean_{experiment}.nc"
         unique_models = sorted(set(model_names))
         ds_out = xr.Dataset(
-            {"r10mm": ensemble_mean},
+            {"r20mm": ensemble_mean},
             attrs={
-                "title": f"Ensemble Mean of R10mm (Days ≥ {threshold} mm Rain) - {experiment}",
+                "title": f"Ensemble Mean of R20mm (Days ≥ {threshold} mm Rain) - {experiment}",
                 "description": f"Aggregation: {aggr}, Threshold: {threshold} mm/day",
                 "units": "days",
                 "models_included": ", ".join(unique_models),
-                "created_by": "R10mm processing script",
+                "created_by": "R20mm processing script",
             }
         )
 

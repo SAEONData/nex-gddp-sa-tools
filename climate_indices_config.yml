@@ -12,7 +12,11 @@ experiments:
 run_indices:
 #- cdd
 #- cwd
-- r10mm
+#- r10mm
+#- r20mm
+#- prcptot
+#- r95ptot
+- r99ptot
 
 region:
   # Spatial bounding box for subsetting climate model data
@@ -36,3 +40,25 @@ cwd:
 r10mm:
   threshold_mm: 10.0
   aggregation: annual
+  
+r20mm:
+  threshold_mm: 20.0
+  aggregation: annual
+  
+prcptot:
+  threshold_mm: 1.0
+  aggregation: annual
+  
+r95ptot:
+  threshold_mm: 1.0
+  percentile: 95
+  aggregation: annual
+  reference_start: "1981-01-01"
+  reference_end: "2010-12-31"
+  
+r99ptot:
+  threshold_mm: 1.0
+  percentile: 99
+  aggregation: annual
+  reference_start: "1981-01-01"
+  reference_end: "2010-12-31"
