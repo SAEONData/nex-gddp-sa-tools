@@ -16,7 +16,9 @@ run_indices:
 #- r20mm
 #- prcptot
 #- r95ptot
-- r99ptot
+#- r99ptot
+#- r95p
+- spi
 
 region:
   # Spatial bounding box for subsetting climate model data
@@ -32,14 +34,15 @@ cdd:
   output_units: days         # Typically 'days' (i.e., max length of dry spell)
   
 cwd:
-  # Consecutive Dry Days index (CDD)
-  threshold_mm: 1.0          # Threshold in mm/day (days with PR < this are considered "dry")
-  aggregation: annual        # Options: 'annual', 'monthly', 'seasonal'
-  output_units: days         # Typically 'days' (i.e., max length of dry spell)
+  threshold_mm: 1.0
+  aggregation: annual
+  aggregation_code: "YS"
+  output_units: days
   
 r10mm:
   threshold_mm: 10.0
   aggregation: annual
+  aggregation_code: "YS"
   
 r20mm:
   threshold_mm: 20.0
@@ -60,5 +63,19 @@ r99ptot:
   threshold_mm: 1.0
   percentile: 99
   aggregation: annual
+  reference_start: "1981-01-01"
+  reference_end: "2010-12-31"
+  
+r95p:
+  threshold_mm: 1.0
+  percentile: 95
+  aggregation: annual
+  reference_start: "1981-01-01"
+  reference_end: "2010-12-31"
+  
+spi:
+  scales: [3, 6, 12]
+  distribution: gamma
+  method: ML
   reference_start: "1981-01-01"
   reference_end: "2010-12-31"

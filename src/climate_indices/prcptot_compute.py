@@ -107,7 +107,10 @@ def run(cfg):
             {"prcptot": ensemble_mean},
             attrs={
                 "title": f"Ensemble Mean of PRCPTOT (Rainfall ≥ {threshold} mm/day) - {experiment}",
-                "description": f"Aggregation: {aggr}, Threshold: {threshold} mm/day",
+                "description": (
+                    f"Total precipitation on wet days (≥ {threshold} mm/day). "
+                    f"Aggregation: {aggr}, CMIP6 experiment: {experiment}"
+                ),
                 "units": "mm",
                 "models_included": ", ".join(unique_models),
                 "created_by": "PRCPTOT processing script",

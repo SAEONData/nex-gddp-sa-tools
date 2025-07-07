@@ -1,4 +1,11 @@
 #!/usr/bin/env python3
+"""
+verify_downloads.py
+---------------------------------------------------------------
+Verify completeness of downloaded CMIP6 NetCDF files by model,
+experiment, and variable based on the configuration YAML file.
+Generates summary and detailed CSV reports.
+"""
 
 import yaml
 from pathlib import Path
@@ -7,50 +14,54 @@ import pandas as pd
 
 
 def count_expected_files(start, end):
-    return end - start + 1  # inclusive of both start and end
+    """Returns the number of expected files for a given time range (inclusive)."""
+    return end - start + 1
 
 
 def main():
-    # ───── Locate config file ─────
-    CFG_PATH = Path(__file__).resolve().parents[1] / "download_config.yml"
-    if not CFG_PATH.exists():
+    print("🔍 Starting download verification...")
+
+    # ─── Load Configuration ───
+    cfg_path = Path(__file__).resolve().parents[1] / "download_config.yml"
+    if not cfg_path.exists():
         raise FileNotFoundError(
-            f"Config file {CFG_PATH} not found. "
-            "Copy download_config_template.yml to download_config.yml and edit it first."
+            f"❌ Config file not found at {cfg_path}.\n"
+            "➡️  Please copy 'download_config_template.yml' to 'download_config.yml' and edit it."
         )
 
-    with CFG_PATH.open() as fh:
+    with cfg_path.open() as fh:
         cfg = yaml.safe_load(fh)
 
-    # ───── Config ─────
+    # ─── Config Parameters ───
     selected_models = cfg["models"]["select"]
-    experiments     = cfg["experiments"]["select"]
-    time_ranges     = cfg["experiments"]["time_ranges"]
-    variables       = cfg["variables"]["daily"]
-    expected_counts = {exp: count_expected_files(*time_ranges[exp]) for exp in experiments}
+    experiments = cfg["experiments"]["select"]
+    time_ranges = cfg["experiments"]["time_ranges"]
+    variables = cfg["variables"]["daily"]
+    expected_counts = {
+        exp: count_expected_files(*time_ranges[exp]) for exp in experiments
+    }
 
-    ROOT = CFG_PATH.parent
-    DATA_DIR = ROOT / "data"
-    OUTPUT_DIR = ROOT / "data" / "outputs"
-    OUTPUT_DIR.mkdir(exist_ok=True)
+    root = cfg_path.parent
+    data_dir = root / "data"
+    output_dir = data_dir / "outputs"
+    output_dir.mkdir(exist_ok=True)
 
-    # ───── Scan and report ─────
+    # ─── Initialize ───
     records = []
     chart_data = []
-    per_exp_data = {}  # model → exp → [found, expected]
+    per_exp_data = {model: {exp: {"found": 0, "expected": 0} for exp in experiments}
+                    for model in selected_models}
     grand_total_files = 0
 
+    # ─── Scan Files ───
     for model in selected_models:
-        if model not in per_exp_data:
-            per_exp_data[model] = {exp: {"found": 0, "expected": 0} for exp in experiments}
-
         for var in variables:
             row = {"Model": model, "Variable": var}
-            total_expected, total_found = 0, 0
+            total_found = total_expected = 0
 
             for exp in experiments:
                 expected = expected_counts[exp]
-                path = DATA_DIR / var / model / exp
+                path = data_dir / var / model / exp
                 files = glob.glob(str(path / f"{var}_*.nc"))
                 found = len(files)
 
@@ -71,32 +82,30 @@ def main():
                 row[f"{exp} ({expected})"] = status
 
             row["Total"] = f"{total_found}/{total_expected}"
-            if total_found == total_expected:
-                row["Overall"] = "✅"
-            elif total_found > total_expected:
-                row["Overall"] = "🔴"
-            else:
-                row["Overall"] = "⚠️"
+            row["Overall"] = (
+                "✅" if total_found == total_expected
+                else "🔴" if total_found > total_expected
+                else "⚠️"
+            )
 
             records.append(row)
 
-            percent = (total_found / total_expected) * 100 if total_expected > 0 else 0
+            percent_complete = (total_found / total_expected) * 100 if total_expected > 0 else 0
             chart_data.append({
                 "Model": model,
                 "Variable": var,
-                "Percent Complete": percent
+                "Percent Complete": round(percent_complete, 1)
             })
 
-    # ───── Save variable-level CSV ─────
+    # ─── Save Detailed Report ───
     df = pd.DataFrame(records)
-    df.to_csv(OUTPUT_DIR / "download_verification_details.csv", index=False)
+    df.to_csv(output_dir / "download_verification_details.csv", index=False)
 
-    # ───── Scenario-based summary ─────
+    # ─── Scenario Summary Report ───
     scenario_records = []
-    for model in per_exp_data:
-        for exp in experiments:
-            found = per_exp_data[model][exp]["found"]
-            expected = per_exp_data[model][exp]["expected"]
+    for model, exp_data in per_exp_data.items():
+        for exp, stats in exp_data.items():
+            found, expected = stats["found"], stats["expected"]
             percent = (found / expected) * 100 if expected > 0 else 0
             scenario_records.append({
                 "Model": model,
@@ -106,23 +115,22 @@ def main():
 
     scenario_df = pd.DataFrame(scenario_records)
     scenario_pivot = scenario_df.pivot(index="Model", columns="Scenario", values="Percent Complete").fillna(0)
-    scenario_pivot.to_csv(OUTPUT_DIR / "download_verification_by_scenario.csv")
+    scenario_pivot.to_csv(output_dir / "download_verification_by_scenario.csv")
 
-    # ───── Output ─────
-    
-    print("\nDownload Verification Summary per Variable\n")
+    # ─── Output Summary ───
+    print("\n📋 Download Summary by Variable\n")
     print(df.to_string(index=False))
-    print(f"\n✅ CSV saved to: {OUTPUT_DIR / 'download_verification_details.csv'}")
-    print(f"✅ Scenario CSV saved to: {OUTPUT_DIR / 'download_verification_by_scenario.csv'}")
-    
-    # ───── Overall Summary ─────
-    total_found_all = sum(per_exp_data[m][e]["found"] for m in per_exp_data for e in per_exp_data[m])
-    total_expected_all = sum(per_exp_data[m][e]["expected"] for m in per_exp_data for e in per_exp_data[m])
-    overall_percent = (total_found_all / total_expected_all * 100) if total_expected_all > 0 else 0
-    
-    print("\nTotal Files Downloaded:", total_found_all)
-    print("Total Expected Files:", total_expected_all)
-    print(f"Overall Completion: {overall_percent:.2f}%")
+    print(f"\n💾 Saved: {output_dir / 'download_verification_details.csv'}")
+    print(f"💾 Saved: {output_dir / 'download_verification_by_scenario.csv'}")
+
+    total_found = sum(exp["found"] for m in per_exp_data.values() for exp in m.values())
+    total_expected = sum(exp["expected"] for m in per_exp_data.values() for exp in m.values())
+    overall_pct = (total_found / total_expected * 100) if total_expected > 0 else 0
+
+    print("\n📁 Total Files Downloaded:", total_found)
+    print("📦 Total Expected Files:", total_expected)
+    print(f"✅ Overall Completion: {overall_pct:.2f}%")
+
 
 if __name__ == "__main__":
     main()

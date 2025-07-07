@@ -1,8 +1,7 @@
-#!/usr/bin/env python3
 """
 cwd_compute.py
 ---------------------------------------------------------------
-Calculate and plot CMIP6 maximum consecutive dry days (CDD)
+Calculate and plot CMIP6 maximum consecutive wet days (CWD)
 aggregated by South African vegetation biomes, with configurable
 thresholds and aggregation (annual, monthly, seasonal).
 """
@@ -31,7 +30,7 @@ def run(cfg):
     threshold  = cfg["cwd"].get("threshold_mm", 1.0)
     aggr       = cfg["cwd"].get("aggregation", "annual")
 
-    aggr_code = cfg["cdd"].get("aggregation_code", "YS")
+    aggr_code = cfg["cwd"].get("aggregation_code", "YS")
 
     ROOT       = Path(__file__).resolve().parents[2]
     DATA_DIR   = ROOT / "data" / "pr"
