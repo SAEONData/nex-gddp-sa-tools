@@ -33,4 +33,24 @@ indices:
     spatial_agg: max
     vmin: 0
     vmax: 40
+    
+  - name: prcptot
+    variable: prcptot
+    data_dir: "data/outputs/prcptot"
+    output: "prcptot_bioregion_timeslices.png"
+    cmap: PuBuGn
+    legend_label: "Total Rainfall from Wet Days (≥ 1 mm)"
+    spatial_agg: mean
+    vmin: 0
+    vmax: 1500
+    
+  - name: r10mm
+    variable: r10mm
+    data_dir: "data/outputs/r10mm"
+    output: "r10mm_bioregion_timeslices.png"
+    cmap: YlGnBu
+    legend_label: "Number of Days with ≥10 mm Rain"
+    spatial_agg: mean
+    vmin: 0
+    vmax: 100
 
