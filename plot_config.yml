@@ -1,0 +1,28 @@
+# plot_config.yml (fixed)
+paths:
+  shapefile: "climate_regions/cleaned_clim_reg_2025_06_30.shp"
+  towns_csv: "cities/cities.csv"
+  output_dir: "data/outputs/plots"
+
+scenarios:
+  - historical
+  - ssp126
+  - ssp245
+  - ssp370
+  - ssp585
+
+indices:
+  - name: cdd
+    variable: max_cdd
+    data_dir: "data/outputs/cdd"
+    output: "cdd_bioregion_timeslices.png"
+    cmap: YlOrBr
+    legend_label: "Max Consecutive Dry Days (days)"
+    
+# - name: prcptot
+#   variable: prcptot
+#   data_dir: "data/outputs/prcptot"
+#   output: "prcptot_bioregion_timeslices.png"
+#   cmap: PuBuGn
+#   legend_label: "Annual Precipitation (mm)"
+

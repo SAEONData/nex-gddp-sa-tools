@@ -3,14 +3,20 @@
 # Use this file to configure spatial bounds, index parameters,
 # and general settings for running climate index calculations.
 # ─────────────────────────────────────────────────────────────
-experiments:
-  select: ["historical"]
-  
 #experiments:
-# select: ["historical", "ssp126", "ssp245", "ssp370", "ssp585"]
+# select: ["historical"]
+  
+experiments:
+  select: ["historical", "ssp126", "ssp245", "ssp370", "ssp585"]
+  
+time_slices:
+  "Baseline (1995–2014)": ["1995-01-01", "2014-12-31"]
+  "Near-term (2021–2040)": ["2021-01-01", "2040-12-31"]
+  "Mid-term (2041–2060)": ["2041-01-01", "2060-12-31"]
+  "Far-term (2081–2100)": ["2081-01-01", "2100-12-31"]
 
 run_indices:
-#- cdd
+- cdd
 #- cwd
 #- r10mm
 #- r20mm
@@ -18,7 +24,7 @@ run_indices:
 #- r95ptot
 #- r99ptot
 #- r95p
-- spi
+#- spi
 
 region:
   # Spatial bounding box for subsetting climate model data
@@ -31,6 +37,7 @@ cdd:
   # Consecutive Dry Days index (CDD)
   threshold_mm: 1.0          # Threshold in mm/day (days with PR < this are considered "dry")
   aggregation: annual        # Options: 'annual', 'monthly', 'seasonal'
+  aggregation_code: "YS"
   output_units: days         # Typically 'days' (i.e., max length of dry spell)
   
 cwd:

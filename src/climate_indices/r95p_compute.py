@@ -118,10 +118,10 @@ def run(cfg):
                     model_names.append(f.stem.split("_")[2])
 
             except Exception as exc:
-                print(f"   ⚠️  {f.name}: {exc}")
+                print(f" {f.name}: {exc}")
 
         if not model_data:
-            print("   ❌  No valid outputs for this experiment")
+            print("No valid outputs for this experiment")
             continue
 
         with ProgressBar():

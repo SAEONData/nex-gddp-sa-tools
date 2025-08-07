@@ -16,18 +16,20 @@ from dask.diagnostics import ProgressBar
 import dask
 import warnings
 warnings.filterwarnings("ignore", message="Class CDD already exists and will be overwritten.")
+xclim.set_options(data_validation='log')
 
 def run(cfg):
     start_time = time.time()
     print("Starting CDD processing...\n")
-    
+
     # ───── Config ─────
     lat_bounds = [cfg["region"]["lat_min"], cfg["region"]["lat_max"]]
     lon_bounds = [cfg["region"]["lon_min"], cfg["region"]["lon_max"]]
     threshold  = cfg["cdd"].get("threshold_mm", 1.0)
     aggr       = cfg["cdd"].get("aggregation", "annual")
-    
-    aggr_code = cfg["cdd"].get("aggregation_code", "YS")
+    aggr_code  = cfg["cdd"].get("aggregation_code", "YS")
+
+    time_slices = cfg.get("time_slices", {})
 
     ROOT       = Path(__file__).resolve().parents[2]
     DATA_DIR   = ROOT / "data" / "pr"
@@ -41,6 +43,12 @@ def run(cfg):
     for experiment in experiments:
         print(f"\n Running experiment: {experiment}")
 
+        # Define applicable time slices
+        if experiment == "historical":
+            slice_names = ["Baseline (1995–2014)"]
+        else:
+            slice_names = [name for name in time_slices if not name.startswith("Baseline")]
+
         nc_files = sorted(Path(p).resolve() for p in glob.glob(str(DATA_DIR / f"**/{experiment}/*.nc"), recursive=True))
         print(f"   Found {len(nc_files)} NetCDF files.")
 
@@ -48,10 +56,8 @@ def run(cfg):
             print(f"⚠️  No files found for {experiment}. Skipping.\n")
             continue
 
-        # ───── Count files per model ─────
         from collections import defaultdict
         model_file_counts = defaultdict(int)
-
         for f in nc_files:
             try:
                 idx = f.parts.index(experiment)
@@ -67,74 +73,78 @@ def run(cfg):
             print(f"{model:30} {count:12} {status}")
         print("\n")
 
-        model_data, model_names = [], []
+        for slice_name in slice_names:
+            start, end = time_slices.get(slice_name, [None, None])
+            print(f" → Time slice: {slice_name} ({start} to {end})")
 
-        for i, nc_file in enumerate(nc_files, 1):
-            print(f" [{i}/{len(nc_files)}] Processing: {nc_file.name}")
-            try:
-                ds = xr.open_dataset(nc_file, chunks={"time": -1})
-                ds = ds.sel(lat=slice(*lat_bounds), lon=slice(*lon_bounds))
+            model_data, model_names = [], []
 
-                if "pr" not in ds:
-                    raise ValueError("Missing 'pr' variable in dataset.")
-                    
-                pr = ds["pr"] * 86400.0  # Convert to mm/day
-                pr.attrs.update({
-                    "units": "mm/day",
-                    "cell_methods": "time: mean",
-                    "standard_name": "precipitation_flux"
-                })
-
-                cdd_instance = CDD()
-                cdd_result = cdd_instance(pr=pr, thresh=f"{threshold} mm/day", freq=aggr_code)
-                cdd_result = cdd_result.compute()
-
-                if cdd_result.isnull().all():
-                    raise ValueError("All CDD values are NaN.")
-
-                cdd_mean = cdd_result.mean(dim="time")
-
+            for i, nc_file in enumerate(nc_files, 1):
+                print(f"   [{i}/{len(nc_files)}] Processing: {nc_file.name}")
                 try:
-                    idx = nc_file.parts.index(experiment)
-                    model_name = nc_file.parts[idx - 1]
-                except ValueError:
-                    model_name = nc_file.stem.split("_")[2]
+                    ds = xr.open_dataset(nc_file, chunks={"time": -1})
+                    ds = ds.sel(lat=slice(*lat_bounds), lon=slice(*lon_bounds))
+                    ds = ds.sel(time=slice(start, end))
 
-                model_data.append(cdd_mean)
-                model_names.append(model_name)
+                    if "pr" not in ds:
+                        raise ValueError("Missing 'pr' variable in dataset.")
 
-            except Exception as e:
-                print(f"⚠️ Error processing {nc_file.name}: {e}")
+                    pr = ds["pr"] * 86400.0  # Convert to mm/day
+                    pr.attrs.update({
+                        "units": "mm/day",
+                        "cell_methods": "time: mean",
+                        "standard_name": "precipitation_flux"
+                    })
 
-        if not model_data:
-            print(f"❌ No valid outputs for {experiment}. Skipping.")
-            continue
+                    cdd_instance = CDD()
+                    cdd_result = cdd_instance(pr=pr, thresh=f"{threshold} mm/day", freq=aggr_code)
+                    cdd_result = cdd_result.compute()
 
-        # ───── Compute Ensemble Mean ─────
-        print(f"\nComputing ensemble mean for {experiment}...")
-        with ProgressBar():
-            computed_data = dask.compute(*model_data)
-            stack = xr.concat(computed_data, dim="model")
-            stack["model"] = model_names
-            ensemble_mean = stack.mean(dim="model")
+                    if cdd_result.isnull().all():
+                        raise ValueError("All CDD values are NaN.")
 
-        # ───── Save Output ─────
-        out_nc = OUTPUT_DIR / f"cdd_ensemble_mean_{experiment}.nc"
-        out_nc.parent.mkdir(parents=True, exist_ok=True)
+                    cdd_mean = cdd_result.mean(dim="time")
 
-        unique_models = sorted(set(model_names))
-        ds_out = xr.Dataset(
-            {"max_cdd": ensemble_mean},
-            attrs={
-                "title": f"Ensemble Mean of Max Consecutive Dry Days (CDD) - {experiment}",
-                "description": f"Threshold: {threshold} mm/day, Aggregation: {aggr}",
-                "units": "days",
-                "models_included": ", ".join(unique_models),
-                "created_by": "CDD processing script",
-            }
-        )
+                    try:
+                        idx = nc_file.parts.index(experiment)
+                        model_name = nc_file.parts[idx - 1]
+                    except ValueError:
+                        model_name = nc_file.stem.split("_")[2]
 
-        ds_out.to_netcdf(out_nc)
-        print(f"✅ Saved NetCDF → {out_nc}")
+                    model_data.append(cdd_mean)
+                    model_names.append(model_name)
+
+                except Exception as e:
+                    print(f"⚠️ Error processing {nc_file.name}: {e}")
+
+            if not model_data:
+                print(f"❌ No valid outputs for {experiment} / {slice_name}. Skipping.")
+                continue
+
+            print(f"\n   → Computing ensemble mean for {experiment} / {slice_name}...")
+            with ProgressBar():
+                computed_data = dask.compute(*model_data)
+                stack = xr.concat(computed_data, dim="model")
+                stack["model"] = model_names
+                ensemble_mean = stack.mean(dim="model")
+
+            label = slice_name.lower().replace(" ", "_").replace("(", "").replace(")", "").replace("–", "-")
+            out_nc = OUTPUT_DIR / f"cdd_ensemble_mean_{experiment}_{label}.nc"
+            out_nc.parent.mkdir(parents=True, exist_ok=True)
+
+            unique_models = sorted(set(model_names))
+            ds_out = xr.Dataset(
+                {"max_cdd": ensemble_mean},
+                attrs={
+                    "title": f"Ensemble Mean of Max CDD - {experiment} - {slice_name}",
+                    "description": f"Threshold: {threshold} mm/day, Aggregation: {aggr}, Slice: {slice_name}",
+                    "units": "days",
+                    "models_included": ", ".join(unique_models),
+                    "created_by": "CDD processing script",
+                }
+            )
+
+            ds_out.to_netcdf(out_nc)
+            print(f"   ✅ Saved NetCDF → {out_nc}")
 
     print(f"\n All experiments completed in {round(time.time() - start_time, 1)} seconds.")
