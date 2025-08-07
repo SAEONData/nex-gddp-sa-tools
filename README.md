@@ -5,7 +5,8 @@ Helper scripts for exploring, downloading, and analysing **NASA NEX‑GDDP‑C
 * **Bulk downloader** – fetch daily precipitation & temperature for a South‑Africa bounding box via YAML parameters  
 
 * **Download verification** – check how many NetCDFs have been downloaded and visualise % completeness
-* **Climate indices (modular)** – calculate indices via YAML configs and model ensemble   
+* **Climate indices (modular)** – calculate indices via YAML configs and model ensemble
+* **plotting** – generate by-bioregion time slice plots using `plot_config.yml`
 * **(Coming soon)** web visualisation & map export tools
 * 
 > **Data source**  
@@ -288,6 +289,54 @@ The `src/climate_indices/` folder contains modular scripts that compute climate 
 | R99p       | Total rainfall from extreme days   | Sum of daily PR > 99th percentile          | Total rainfall from extremely wet days                      | mm      | 
 | Rx1day     | Max 1-day precipitation            | Max daily PR total                         | Most rainfall on a single day                               | mm      | 
 | Rx5day     | Max 5-day precipitation            | Max 5-day PR total                         | Most rainfall over 5 consecutive days                       | mm      | 
+
+---
+
+## 5  Plotting  
+_Last update: **07 Aug 2025**_
+
+The `src/plot_index_by_bioregion.py` module generates time-slice maps (by vegetation biome) from ensemble NetCDFs.
+
+### ▶️ Run plotting
+
+```bash
+python src/run_plot_example.py
+```
+
+Produces:
+- `max_cdd_historical_baseline.png`
+- `max_cdd_scenarios_timeslices.png`
+
+Both stored in the directory specified under `output_dir` in the YAML.
+
+### 🧾 `plot_config.yml`
+
+```yaml
+paths:
+  shapefile: "climate_regions/cleaned_clim_reg_2025_06_30.shp"
+  towns_csv: "cities/cities.csv"
+  output_dir: "data/outputs/plots"
+
+scenarios:
+  - historical
+  - ssp126
+  - ssp245
+  - ssp370
+  - ssp585
+
+indices:
+  - name: cdd
+    variable: max_cdd
+    data_dir: "data/outputs/cdd"
+    output: "cdd_bioregion_timeslices.png"
+    cmap: YlOrBr
+    legend_label: "Max Consecutive Dry Days (days)"
+```
+
+### Functions
+
+- `run_plot_example.py`: loops over indices and calls plotting
+- `plot_index_by_bioregion.py`: loads shapefiles, applies region masks, averages values, creates plots
 
 ---
 
