@@ -2,13 +2,12 @@
 """
 prcptot_compute.py
 ---------------------------------------------------------------
-Calculate and save CMIP6 PRCPTOT: total rainfall on wet days (≥1 mm/day).
-Supports multiple experiments and aggregation levels.
+Calculate and save CMIP6 PRCPTOT: total rainfall on wet days (≥1 mm/day),
+aggregated by time slices and experiments (historical & scenarios).
 """
 
 from pathlib import Path
-import glob
-import time
+import glob, time
 import numpy as np
 import xarray as xr
 from xclim.indices import wetdays
@@ -16,7 +15,6 @@ from xclim.core.units import convert_units_to
 from dask.diagnostics import ProgressBar
 import dask
 import warnings
-
 warnings.filterwarnings("ignore", message=".*already exists and will be overwritten.")
 
 def run(cfg):
@@ -31,6 +29,8 @@ def run(cfg):
     aggr_map  = {"monthly": "MS", "seasonal": "QS-DEC", "annual": "YS"}
     aggr_code = aggr_map.get(aggr, "YS")
 
+    time_slices = cfg.get("time_slices", {})
+
     ROOT       = Path(__file__).resolve().parents[2]
     DATA_DIR   = ROOT / "data" / "pr"
     OUTPUT_DIR = ROOT / "data" / "outputs" / "prcptot"
@@ -38,94 +38,92 @@ def run(cfg):
 
     experiments = cfg.get("experiments", {}).get("select", ["historical"])
 
-    from collections import defaultdict
-    model_file_counts = defaultdict(lambda: defaultdict(int))
-
     for experiment in experiments:
-        print(f"\n📁 Processing scenario: {experiment}")
+        print(f"\n📁 Processing experiment: {experiment}")
         nc_files = sorted(Path(p).resolve() for p in glob.glob(str(DATA_DIR / f"**/{experiment}/*.nc"), recursive=True))
         print(f" Found {len(nc_files)} NetCDF files for '{experiment}'.\n")
 
-        model_data, model_names = [], []
+        # Time slice filtering
+        if experiment == "historical":
+            slice_names = ["Baseline (1995–2014)"]
+        else:
+            slice_names = [name for name in time_slices if not name.startswith("Baseline")]
 
-        for i, nc_file in enumerate(nc_files, 1):
-            print(f" [{i}/{len(nc_files)}] Processing: {nc_file.name}")
-            try:
-                ds = xr.open_dataset(nc_file, chunks={"time": -1})
-                ds = ds.sel(lat=slice(*lat_bounds), lon=slice(*lon_bounds))
+        for slice_name in slice_names:
+            start, end = time_slices.get(slice_name, [None, None])
+            print(f" → Time slice: {slice_name} ({start} to {end})")
 
-                if "pr" not in ds:
-                    raise ValueError("Missing 'pr' variable in dataset.")
+            model_data, model_names = [], []
 
-                # Convert to mm/day and update attributes
-                pr = convert_units_to(ds["pr"], "mm/day")
-                pr.attrs.update({
-                    "units": "mm/day",
-                    "standard_name": "precipitation_flux",
-                    "long_name": "Precipitation",
-                    "cell_methods": "time: mean"
-                })
-
-                # Mask out non-wet days (pr < threshold)
-                pr_masked = pr.where(pr >= threshold)
-
-                # Resample and sum only over wet days
-                prcptot = pr_masked.resample(time=aggr_code).sum(dim="time").compute()
-
-                if prcptot.isnull().all():
-                    raise ValueError("All PRCPTOT values are NaN.")
-
-                prcptot_mean = prcptot.mean(dim="time")
-
+            for i, nc_file in enumerate(nc_files, 1):
+                print(f"   [{i}/{len(nc_files)}] Processing: {nc_file.name}")
                 try:
-                    idx = nc_file.parts.index(experiment)
-                    model_name = nc_file.parts[idx - 1]
-                except ValueError:
-                    model_name = nc_file.stem.split("_")[2]
+                    ds = xr.open_dataset(nc_file, chunks={"time": -1})
+                    ds = ds.sel(lat=slice(*lat_bounds), lon=slice(*lon_bounds))
+                    ds = ds.sel(time=slice(start, end))
 
-                model_file_counts[model_name][experiment] += 1
-                model_data.append(prcptot_mean)
-                model_names.append(model_name)
+                    if "pr" not in ds:
+                        raise ValueError("Missing 'pr' variable in dataset.")
 
-            except Exception as e:
-                print(f"Error processing {nc_file.name}: {e}\n")
+                    pr = convert_units_to(ds["pr"], "mm/day")
+                    pr.attrs.update({
+                        "units": "mm/day",
+                        "standard_name": "precipitation_flux",
+                        "cell_methods": "time: mean"
+                    })
 
-        if not model_data:
-            print(f"⚠️ No successful files for {experiment}. Skipping ensemble.")
-            continue
+                    # Mask out dry days and sum
+                    pr_masked = pr.where(pr >= threshold)
+                    prcptot = pr_masked.resample(time=aggr_code).sum(dim="time").compute()
 
-        print(" Computing ensemble mean...")
-        with ProgressBar():
-            computed_data = dask.compute(*model_data)
-            stack = xr.concat(computed_data, dim="model")
-            stack["model"] = model_names
-            ensemble_mean = stack.mean(dim="model")
+                    if prcptot.isnull().all():
+                        raise ValueError("All PRCPTOT values are NaN.")
 
-        out_nc = OUTPUT_DIR / f"prcptot_ensemble_mean_{experiment}.nc"
-        unique_models = sorted(set(model_names))
-        ds_out = xr.Dataset(
-            {"prcptot": ensemble_mean},
-            attrs={
-                "title": f"Ensemble Mean of PRCPTOT (Rainfall ≥ {threshold} mm/day) - {experiment}",
-                "description": (
-                    f"Total precipitation on wet days (≥ {threshold} mm/day). "
-                    f"Aggregation: {aggr}, CMIP6 experiment: {experiment}"
-                ),
-                "units": "mm",
-                "models_included": ", ".join(unique_models),
-                "created_by": "PRCPTOT processing script",
-            }
-        )
+                    prcptot_mean = prcptot.mean(dim="time")
 
-        ds_out.to_netcdf(out_nc)
-        print(f"✅ Saved ensemble NetCDF → {out_nc}")
+                    try:
+                        idx = nc_file.parts.index(experiment)
+                        model_name = nc_file.parts[idx - 1]
+                    except ValueError:
+                        model_name = nc_file.stem.split("_")[2]
 
-    print("\n📊 File summary per model/scenario:")
-    for model, exp_data in sorted(model_file_counts.items()):
-        row = f"{model:30}"
-        for exp in experiments:
-            count = exp_data.get(exp, 0)
-            row += f" {exp}: {count:2d}"
-        print(row)
+                    model_data.append(prcptot_mean)
+                    model_names.append(model_name)
+
+                except Exception as e:
+                    print(f"⚠️ Error processing {nc_file.name}: {e}")
+
+            if not model_data:
+                print(f"❌ No valid outputs for {experiment} / {slice_name}. Skipping.")
+                continue
+
+            print(f"\n   → Computing ensemble mean for {experiment} / {slice_name}...")
+            with ProgressBar():
+                computed_data = dask.compute(*model_data)
+                stack = xr.concat(computed_data, dim="model")
+                stack["model"] = model_names
+                ensemble_mean = stack.mean(dim="model")
+
+            # Format slice label
+            label = slice_name.lower().replace(" ", "_").replace("(", "").replace(")", "").replace("–", "-")
+            out_nc = OUTPUT_DIR / f"prcptot_ensemble_mean_{experiment}_{label}.nc"
+
+            unique_models = sorted(set(model_names))
+            ds_out = xr.Dataset(
+                {"prcptot": ensemble_mean},
+                attrs={
+                    "title": f"Ensemble Mean of PRCPTOT - {experiment} - {slice_name}",
+                    "description": (
+                        f"Total rainfall on wet days (≥ {threshold} mm/day), "
+                        f"Aggregation: {aggr}, Time slice: {slice_name}"
+                    ),
+                    "units": "mm",
+                    "models_included": ", ".join(unique_models),
+                    "created_by": "PRCPTOT processing script"
+                }
+            )
+
+            ds_out.to_netcdf(out_nc)
+            print(f"   ✅ Saved NetCDF → {out_nc}")
 
     print(f"\n⏱️ Completed in {round(time.time() - start_time, 1)} seconds.")

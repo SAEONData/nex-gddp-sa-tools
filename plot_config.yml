@@ -34,13 +34,3 @@ indices:
     vmin: 0
     vmax: 40
 
-# Example of another index:
-# - name: prcptot
-#   variable: prcptot
-#   data_dir: "data/outputs/prcptot"
-#   output: "prcptot_bioregion_timeslices.png"
-#   cmap: PuBuGn
-#   legend_label: "Annual Precipitation (mm)"
-#   spatial_agg: mean
-#   vmin: 0
-#   vmax: 1800

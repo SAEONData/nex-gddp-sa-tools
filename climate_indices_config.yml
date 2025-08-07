@@ -17,10 +17,10 @@ time_slices:
 
 run_indices:
 #- cdd
-- cwd
+#- cwd
 #- r10mm
 #- r20mm
-#- prcptot
+- prcptot
 #- r95ptot
 #- r99ptot
 #- r95p

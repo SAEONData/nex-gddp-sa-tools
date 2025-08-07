@@ -37,6 +37,7 @@ with CFG_PATH.open() as f:
 from plot_index_by_bioregion import plot_time_slices_by_bioregion
 from plot_index_by_municipality import plot_time_slices_by_municipality
 from plot_index_by_bioregion_overlay import plot_time_slices_by_bioregion_overlay
+from plot_index_by_municipality_overlay import plot_time_slices_by_municipality_overlay
 
 # 5. Shared paths
 shape_path = (ROOT / cfg["paths"]["shapefile"]).resolve()
@@ -124,6 +125,21 @@ for entry in indices:
         index_name=index_name,
         data_dir=input_dir,
         shapefile_path=shape_path,
+        towns_csv_path=towns_path,
+        index_variable=index_var,
+        time_labels=time_labels,
+        scenario_order=scenarios,
+        cmap=cmap,
+        output_path=output_dir,
+        legend_label=legend_label,
+        vmin=global_vmin,
+        vmax=global_vmax,
+    )
+    
+    plot_time_slices_by_municipality_overlay(
+        index_name=index_name,
+        data_dir=input_dir,
+        shapefile_path=shape2_path,
         towns_csv_path=towns_path,
         index_variable=index_var,
         time_labels=time_labels,
