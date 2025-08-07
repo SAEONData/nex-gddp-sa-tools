@@ -1,8 +1,10 @@
-# plot_config.yml (fixed)
+# plot_config.yml (with vmin/vmax support)
 paths:
   shapefile: "climate_regions/cleaned_clim_reg_2025_06_30.shp"
+  shapefile2: "MDB_District_Municipal_Boundary_2018/MDB_District_Municipal_Boundary_2018.shp"
   towns_csv: "cities/cities.csv"
   output_dir: "data/outputs/plots"
+  
 
 scenarios:
   - historical
@@ -18,11 +20,27 @@ indices:
     output: "cdd_bioregion_timeslices.png"
     cmap: YlOrBr
     legend_label: "Max Consecutive Dry Days (days)"
-    
+    spatial_agg: max          # options: mean, max, min, median
+    vmin: 0                   # ✅ Set global colorbar minimum (optional)
+    vmax: 120                 # ✅ Set global colorbar maximum (optional)
+
+  - name: cwd
+    variable: max_cwd
+    data_dir: "data/outputs/cwd"
+    output: "cwd_bioregion_timeslices.png"
+    cmap: Blues
+    legend_label: "Max Consecutive Wet Days (days)"
+    spatial_agg: max
+    vmin: 0
+    vmax: 40
+
+# Example of another index:
 # - name: prcptot
 #   variable: prcptot
 #   data_dir: "data/outputs/prcptot"
 #   output: "prcptot_bioregion_timeslices.png"
 #   cmap: PuBuGn
 #   legend_label: "Annual Precipitation (mm)"
-
+#   spatial_agg: mean
+#   vmin: 0
+#   vmax: 1800

@@ -8,7 +8,7 @@ def normalize_label(label):
         .replace(")", "")
     )
 
-def plot_time_slices_by_bioregion(
+def plot_time_slices_by_bioregion_overlay(
     index_name,
     data_dir,
     shapefile_path,
@@ -19,7 +19,6 @@ def plot_time_slices_by_bioregion(
     cmap="YlOrBr",
     output_path=None,
     legend_label=None,
-    spatial_agg="mean",
     vmin=None,              # ✅ NEW
     vmax=None               # ✅ NEW
 ):
@@ -29,20 +28,12 @@ def plot_time_slices_by_bioregion(
     import pandas as pd
     import numpy as np
     import matplotlib.pyplot as plt
-    import regionmask
 
     data_dir = Path(data_dir)
     all_files = list(data_dir.glob("*.nc"))
 
-    # ───────── Load spatial data ─────────
-    bioregions = gpd.read_file(shapefile_path).to_crs("EPSG:4326")
-    region_mask = regionmask.Regions(
-        outlines=bioregions.geometry,
-        names=bioregions['Veg_Biome'],
-        abbrevs=bioregions['Veg_Biome'],
-        name="Bioregions"
-    )
-
+    # Load shapefile and towns for overlay
+    overlay_shapes = gpd.read_file(shapefile_path).to_crs("EPSG:4326")
     towns_df = pd.read_csv(towns_csv_path, sep=';')
     towns_df.columns = towns_df.columns.str.strip()
     towns_gdf = gpd.GeoDataFrame(
@@ -78,28 +69,8 @@ def plot_time_slices_by_bioregion(
                     print(f"⚠️ Variable '{index_variable}' not found in {match.name}")
                     continue
 
-                region_mask_da = region_mask.mask(index_da)
-                grouped = index_da.groupby(region_mask_da)
-
-                # ✅ Use spatial aggregation from config
-                if spatial_agg == "mean":
-                    regional_values = grouped.mean(dim=("lat", "lon"))
-                elif spatial_agg == "max":
-                    regional_values = grouped.max(dim=("lat", "lon"))
-                elif spatial_agg == "min":
-                    regional_values = grouped.min(dim=("lat", "lon"))
-                elif spatial_agg == "median":
-                    regional_values = grouped.median(dim=("lat", "lon"))
-                else:
-                    raise ValueError(f"Unsupported spatial_agg: {spatial_agg}")
-
-                df = pd.DataFrame({
-                    "Veg_Biome": region_mask.names,
-                    "Value": regional_values.values
-                })
-
-                plot_data[(scenario, label)] = df
-                all_values.extend(regional_values.values)
+                plot_data[(scenario, label)] = index_da
+                all_values.extend(index_da.values.flatten())
 
         return plot_data, all_values
 
@@ -109,8 +80,8 @@ def plot_time_slices_by_bioregion(
     hist_plot_data, hist_values = collect_data(historical_scenarios, hist_labels)
     scen_plot_data, scen_values = collect_data(scenario_runs, future_labels)
 
-    all_values = hist_values + scen_values
-    if not all_values:
+    all_values = np.array(hist_values + scen_values)
+    if not all_values.size:
         raise ValueError("No valid data found for plotting.")
 
     global_vmin = np.nanmin(all_values) if vmin is None else vmin
@@ -126,30 +97,27 @@ def plot_time_slices_by_bioregion(
         for i, scenario in enumerate(scenarios):
             for j, label in enumerate(labels):
                 ax = axes[i, j]
-                df = plot_data.get((scenario, label))
-                if df is None:
+                index_da = plot_data.get((scenario, label))
+                if index_da is None:
                     ax.set_title(f"{scenario.upper()} — {label}\n(no data)", fontsize=10)
                     ax.set_axis_off()
                     continue
 
-                merged = bioregions.merge(df, on="Veg_Biome")
-                merged.plot(
-                    column="Value",
+                index_da.plot(
+                    ax=ax,
                     cmap=cmap,
-                    linewidth=0.5,
-                    edgecolor="black",
-                    legend=True,
-                    legend_kwds={
+                    vmin=global_vmin,
+                    vmax=global_vmax,
+                    cbar_kwargs={
                         "label": legend_label or f"{index_variable.replace('_', ' ').title()} (units)",
                         "orientation": "vertical",
                         "shrink": 0.7,
                         "ticks": ticks
-                    },
-                    ax=ax,
-                    vmin=global_vmin,
-                    vmax=global_vmax
+                    }
                 )
 
+                overlay_shapes.boundary.plot(ax=ax, edgecolor="black", linewidth=0.5)
+                # towns_gdf.plot(ax=ax, color='black', markersize=15, zorder=5)
                 ax.set_title(f"{scenario.upper()} — {label}", fontsize=10)
                 ax.set_axis_off()
 
@@ -159,7 +127,7 @@ def plot_time_slices_by_bioregion(
             plot_file = Path(output_path) / fname
             plot_file.parent.mkdir(parents=True, exist_ok=True)
             plt.savefig(plot_file, dpi=300, bbox_inches='tight')
-            print(f"✅ Plot saved to: {plot_file}")
+            print(f"✅ Overlay plot saved to: {plot_file}")
         else:
             plt.show()
 
@@ -169,7 +137,7 @@ def plot_time_slices_by_bioregion(
             historical_scenarios,
             hist_labels,
             "",
-            f"{index_variable}_historical_baseline.png"
+            f"{index_variable}_historical_overlay.png"
         )
 
     if scen_plot_data:
@@ -178,5 +146,5 @@ def plot_time_slices_by_bioregion(
             scenario_runs,
             future_labels,
             "",
-            f"{index_variable}_scenarios_timeslices.png"
+            f"{index_variable}_scenarios_overlay.png"
         )

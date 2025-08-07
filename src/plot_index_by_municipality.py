@@ -1,14 +1,14 @@
 def normalize_label(label):
     return (
         label.lower()
-        .replace("–", "-")  # en dash
-        .replace("—", "-")  # em dash
+        .replace("–", "-")
+        .replace("—", "-")
         .replace(" ", "_")
         .replace("(", "")
         .replace(")", "")
     )
 
-def plot_time_slices_by_bioregion(
+def plot_time_slices_by_municipality(
     index_name,
     data_dir,
     shapefile_path,
@@ -16,12 +16,12 @@ def plot_time_slices_by_bioregion(
     index_variable,
     time_labels,
     scenario_order,
-    cmap="YlOrBr",
+    cmap="YlOrRd",
     output_path=None,
     legend_label=None,
     spatial_agg="mean",
     vmin=None,              # ✅ NEW
-    vmax=None               # ✅ NEW
+    vmax=None               # ✅ NEW# ✅ New parameter
 ):
     from pathlib import Path
     import xarray as xr
@@ -34,13 +34,18 @@ def plot_time_slices_by_bioregion(
     data_dir = Path(data_dir)
     all_files = list(data_dir.glob("*.nc"))
 
-    # ───────── Load spatial data ─────────
-    bioregions = gpd.read_file(shapefile_path).to_crs("EPSG:4326")
+    municipalities = gpd.read_file(shapefile_path).to_crs("EPSG:4326")
+
+    possible_name_fields = ["DISTRICT", "NAME", "NAME_1"]
+    name_field = next((col for col in possible_name_fields if col in municipalities.columns), None)
+    if not name_field:
+        raise ValueError("❌ Could not find a suitable name column in municipality shapefile.")
+
     region_mask = regionmask.Regions(
-        outlines=bioregions.geometry,
-        names=bioregions['Veg_Biome'],
-        abbrevs=bioregions['Veg_Biome'],
-        name="Bioregions"
+        outlines=municipalities.geometry,
+        names=municipalities[name_field],
+        abbrevs=municipalities[name_field],
+        name="Municipalities"
     )
 
     towns_df = pd.read_csv(towns_csv_path, sep=';')
@@ -79,9 +84,10 @@ def plot_time_slices_by_bioregion(
                     continue
 
                 region_mask_da = region_mask.mask(index_da)
+                print(region_mask_da)  # Check for NaNs or unexpected shapes
                 grouped = index_da.groupby(region_mask_da)
 
-                # ✅ Use spatial aggregation from config
+                # ✅ Apply spatial aggregation method dynamically
                 if spatial_agg == "mean":
                     regional_values = grouped.mean(dim=("lat", "lon"))
                 elif spatial_agg == "max":
@@ -93,13 +99,17 @@ def plot_time_slices_by_bioregion(
                 else:
                     raise ValueError(f"Unsupported spatial_agg: {spatial_agg}")
 
-                df = pd.DataFrame({
-                    "Veg_Biome": region_mask.names,
-                    "Value": regional_values.values
-                })
+                values = regional_values.values
+                valid = ~np.isnan(values)
+                region_indices = np.arange(len(values))[valid]
+                region_names = [region_mask.names[i] for i in region_indices]
 
+                df = pd.DataFrame({
+                    name_field: region_names,
+                    "Value": values[valid]
+                })
                 plot_data[(scenario, label)] = df
-                all_values.extend(regional_values.values)
+                all_values.extend(values[valid])
 
         return plot_data, all_values
 
@@ -123,6 +133,9 @@ def plot_time_slices_by_bioregion(
         fig, axes = plt.subplots(n_rows, n_cols, figsize=(6 * n_cols, 5 * n_rows), constrained_layout=True)
         axes = np.atleast_2d(axes)
 
+#       ticks = np.linspace(global_vmin, global_vmax, num=6)
+        ticks = np.round(np.linspace(global_vmin, global_vmax, num=6)).astype(int)
+
         for i, scenario in enumerate(scenarios):
             for j, label in enumerate(labels):
                 ax = axes[i, j]
@@ -132,11 +145,11 @@ def plot_time_slices_by_bioregion(
                     ax.set_axis_off()
                     continue
 
-                merged = bioregions.merge(df, on="Veg_Biome")
+                merged = municipalities.merge(df, on=name_field)
                 merged.plot(
                     column="Value",
                     cmap=cmap,
-                    linewidth=0.5,
+                    linewidth=0.3,
                     edgecolor="black",
                     legend=True,
                     legend_kwds={
@@ -169,7 +182,7 @@ def plot_time_slices_by_bioregion(
             historical_scenarios,
             hist_labels,
             "",
-            f"{index_variable}_historical_baseline.png"
+            f"{index_variable}_historical_baseline_municipalities.png"
         )
 
     if scen_plot_data:
@@ -178,5 +191,5 @@ def plot_time_slices_by_bioregion(
             scenario_runs,
             future_labels,
             "",
-            f"{index_variable}_scenarios_timeslices.png"
+            f"{index_variable}_scenarios_timeslices_municipalities.png"
         )

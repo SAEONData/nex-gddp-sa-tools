@@ -16,8 +16,8 @@ time_slices:
   "Far-term (2081–2100)": ["2081-01-01", "2100-12-31"]
 
 run_indices:
-- cdd
-#- cwd
+#- cdd
+- cwd
 #- r10mm
 #- r20mm
 #- prcptot
