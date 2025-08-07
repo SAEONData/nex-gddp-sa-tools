@@ -49,8 +49,8 @@ indices:
     data_dir: "data/outputs/r10mm"
     output: "r10mm_bioregion_timeslices.png"
     cmap: YlGnBu
-    legend_label: "Number of Days with ≥10 mm Rain"
-    spatial_agg: mean
+    legend_label: "Days with at least 10 mm Rain (days)"
+    spatial_agg: max
     vmin: 0
     vmax: 100
 
