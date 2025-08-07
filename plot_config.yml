@@ -38,7 +38,7 @@ indices:
     variable: prcptot
     data_dir: "data/outputs/prcptot"
     output: "prcptot_bioregion_timeslices.png"
-    cmap: PuBuGn
+    cmap: YlGnBu
     legend_label: "Total Rainfall from Wet Days (≥ 1 mm)"
     spatial_agg: mean
     vmin: 0
@@ -53,4 +53,14 @@ indices:
     spatial_agg: max
     vmin: 0
     vmax: 100
+    
+  - name: r20mm
+    variable: r20mm
+    data_dir: "data/outputs/r20mm"
+    output: "r20mm_bioregion_timeslices.png"
+    cmap: YlGnBu
+    legend_label: "Days with at least 20 mm rain (days)"
+    spatial_agg: max          # options: mean, max, min, median
+    vmin: 0                   # Optional: adjust based on expected range
+    vmax: 40
 
