@@ -1,14 +1,13 @@
 # ─────────────────────────────────────────────────────────────
 # Climate Indices Configuration YAML
-# Use this file to configure spatial bounds, index parameters,
-# and general settings for running climate index calculations.
 # ─────────────────────────────────────────────────────────────
+
 #experiments:
-# select: ["historical"]
-  
+#  select: ["historical"]
+
 experiments:
   select: ["historical", "ssp126", "ssp245", "ssp370", "ssp585"]
-  
+
 time_slices:
   "Baseline (1995–2014)": ["1995-01-01", "2014-12-31"]
   "Near-term (2021–2040)": ["2021-01-01", "2040-12-31"]
@@ -16,73 +15,92 @@ time_slices:
   "Far-term (2081–2100)": ["2081-01-01", "2100-12-31"]
 
 run_indices:
-#- cdd
-#- cwd
-#- r10mm
-  - r20mm
-#- prcptot
-#- r95ptot
-#- r99ptot
-#- r95p
-#- spi
+# - cdd
+# - cwd
+# - r10mm
+# - r20mm
+# - prcptot
+# - r95ptot
+# - r99ptot
+# - r95p
+# - r99p
+# - spi
+# - sdii
+# - rx1day
+  - rx5day
+  
+# - tnn   
+# - wsdi
+# - fd
+# - txx
 
 region:
   # Spatial bounding box for subsetting climate model data
-  lat_min: -35.0       # Southernmost latitude
-  lat_max: -20.0       # Northernmost latitude
-  lon_min: 16.0        # Westernmost longitude
-  lon_max: 33.0        # Easternmost longitude
+  lat_min: -35.0
+  lat_max: -20.0
+  lon_min: 16.0
+  lon_max: 33.0
 
 cdd:
-  # Consecutive Dry Days index (CDD)
-  threshold_mm: 1.0          # Threshold in mm/day (days with PR < this are considered "dry")
-  aggregation: annual        # Options: 'annual', 'monthly', 'seasonal'
-  aggregation_code: "YS"
-  output_units: days         # Typically 'days' (i.e., max length of dry spell)
-  
+  # Consecutive Dry Days (CDD)
+  threshold_mm: 1.0         # PR < threshold => "dry"
+  aggregation: annual       # 'annual' | 'monthly' | 'seasonal'
+  aggregation_code: "YS"    # pandas offset alias used by xclim (e.g., 'MS', 'QS-DEC', 'YS')
+  output_units: days
+
 cwd:
   threshold_mm: 1.0
   aggregation: annual
   aggregation_code: "YS"
   output_units: days
-  
+
 r10mm:
   threshold_mm: 10.0
   aggregation: annual
   aggregation_code: "YS"
-  
+
 r20mm:
   threshold_mm: 20.0
   aggregation: annual
-  
+  aggregation_code: "YS"
+
 prcptot:
   threshold_mm: 1.0
   aggregation: annual
   
 r95ptot:
-  threshold_mm: 1.0
+  wetday_threshold_mm: 1.0
+  baseline_slice: "Baseline (1995–2014)"
   percentile: 95
-  aggregation: annual
-  reference_start: "1981-01-01"
-  reference_end: "2010-12-31"
   
 r99ptot:
-  threshold_mm: 1.0
-  percentile: 99
-  aggregation: annual
-  reference_start: "1981-01-01"
-  reference_end: "2010-12-31"
+  wetday_threshold_mm: 1.0
+  baseline_slice: "Baseline (1995–2014)"
+  percentile: 99  
   
 r95p:
-  threshold_mm: 1.0
+  wetday_threshold_mm: 1.0
+  baseline_slice: "Baseline (1995–2014)"
+  aggregation: annual        # or 'seasonal' / 'monthly' if you prefer
   percentile: 95
+
+r99p:
+  wetday_threshold_mm: 1.0
+  baseline_slice: "Baseline (1995–2014)"
   aggregation: annual
-  reference_start: "1981-01-01"
-  reference_end: "2010-12-31"
+  percentile: 99
   
 spi:
-  scales: [3, 6, 12]
-  distribution: gamma
-  method: ML
-  reference_start: "1981-01-01"
-  reference_end: "2010-12-31"
+  scales: [3, 6, 12]          # months
+  reference_start: "1995-01-01"
+  reference_end:   "2014-12-31"
+  
+sdii:
+  threshold_mm: 1.0
+  aggregation: annual     # or 'seasonal' / 'monthly'
+  
+rx1day:
+  aggregation: annual    # options: annual | seasonal | monthly  (maps to YS | QS-DEC | MS)
+  
+rx5day:
+  aggregation: annual   # options: annual | seasonal | monthly  (maps to YS | QS-DEC | MS)

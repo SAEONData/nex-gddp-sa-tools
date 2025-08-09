@@ -1,10 +1,9 @@
-# plot_config.yml (with vmin/vmax support)
+# plot_config.yml (with vmin/vmax and anomaly toggle)
 paths:
   shapefile: "climate_regions/cleaned_clim_reg_2025_06_30.shp"
   shapefile2: "MDB_District_Municipal_Boundary_2018/MDB_District_Municipal_Boundary_2018.shp"
   towns_csv: "cities/cities.csv"
   output_dir: "data/outputs/plots"
-  
 
 scenarios:
   - historical
@@ -14,53 +13,175 @@ scenarios:
   - ssp585
 
 indices:
-  - name: cdd
-    variable: max_cdd
-    data_dir: "data/outputs/cdd"
-    output: "cdd_bioregion_timeslices.png"
-    cmap: YlOrBr
-    legend_label: "Max Consecutive Dry Days (days)"
-    spatial_agg: max          # options: mean, max, min, median
-    vmin: 0                   # ✅ Set global colorbar minimum (optional)
-    vmax: 120                 # ✅ Set global colorbar maximum (optional)
+# # CDD anomaly (Δ days relative to 1995–2014)
+# - name: cdd
+#   variable: max_cdd_anomaly     # <- explicit
+#   data_dir: "data/outputs/cdd"
+#   output: "cdd_bioregion_timeslices_anomaly.png"
+#   cmap: RdBu_r
+#   legend_label: "CDD Anomaly (Δ days vs 1995–2014)"
+#   spatial_agg: max
+#   anomaly: true                  
+#
+# - name: cwd
+#   variable: max_cwd_anomaly
+#   data_dir: "data/outputs/cwd"
+#   output: "cwd_bioregion_timeslices_anomaly.png"
+#   cmap: RdBu      # red ↑ = wetter spells; blue ↓ = shorter spells
+#   legend_label: "CWD Anomaly (Δ days vs 1995–2014)"
+#   spatial_agg: max
+#   anomaly: true
+#   
+# - name: r10mm
+#   variable: r10mm_anomaly
+#   data_dir: "data/outputs/r10mm"
+#   output: "r10mm_bioregion_timeslices_anomaly.png"
+#   cmap: RdBu
+#   legend_label: "R10mm Anomaly (Δ days vs 1995–2014)"
+#   spatial_agg: sum
+#   anomaly: true
+#   
+# - name: r20mm
+#   variable: r20mm_anomaly
+#   data_dir: "data/outputs/r20mm"
+#   output: "r20mm_bioregion_timeslices_anomaly.png"
+#   cmap: RdBu
+#   legend_label: "R20mm Anomaly (Δ days vs 1995–2014)"
+#   spatial_agg: sum
+#   anomaly: true
+#   
+# - name: prcptot
+#   variable: prcptot_anomaly
+#   data_dir: "data/outputs/prcptot"
+#   output: "prcptot_bioregion_timeslices_anomaly.png"
+#   cmap: RdBu
+#   legend_label: "PRCPTOT Anomaly (Δ mm vs 1995–2014)"
+#   spatial_agg: sum
+#   anomaly: true
+#   
+# - name: r95ptot
+#   variable: r95ptot_anomaly
+#   data_dir: "data/outputs/r95ptot"
+#   cmap: RdBu
+#   legend_label: "R95pTOT Anomaly (Δ% vs 1995–2014)"
+#   anomaly: true
+# 
+# - name: r99ptot
+#   variable: r99ptot_anomaly
+#   data_dir: "data/outputs/r99ptot"
+#   cmap: RdBu
+#   legend_label: "R99pTOT Anomaly (Δ% vs 1995–2014)"
+#   anomaly: true
+#   
+## # Optional absolute
+## - name: r99ptot
+##   variable: r99ptot
+##   data_dir: "data/outputs/r99ptot"
+##   cmap: YlGnBu
+##   legend_label: "R99pTOT (%)"
+##   anomaly: false
+#
+#
+# - name: r95p
+#   variable: r95p_anomaly
+#   data_dir: "data/outputs/r95p"
+#   cmap: RdBu
+#   legend_label: "R95p Anomaly (Δ mm vs 1995–2014)"
+#   anomaly: true
+#   
+# # Optional absolute
+# - name: r95p
+#   variable: r95p
+#   data_dir: "data/outputs/r95p"
+#   cmap: YlGnBu
+#   legend_label: "R95p (mm per period)"
+#   anomaly: false
 
-  - name: cwd
-    variable: max_cwd
-    data_dir: "data/outputs/cwd"
-    output: "cwd_bioregion_timeslices.png"
-    cmap: Blues
-    legend_label: "Max Consecutive Wet Days (days)"
-    spatial_agg: max
-    vmin: 0
-    vmax: 40
-    
-  - name: prcptot
-    variable: prcptot
-    data_dir: "data/outputs/prcptot"
-    output: "prcptot_bioregion_timeslices.png"
-    cmap: YlGnBu
-    legend_label: "Total Rainfall from Wet Days (≥ 1 mm)"
-    spatial_agg: mean
-    vmin: 0
-    vmax: 1500
-    
-  - name: r10mm
-    variable: r10mm
-    data_dir: "data/outputs/r10mm"
-    output: "r10mm_bioregion_timeslices.png"
-    cmap: YlGnBu
-    legend_label: "Days with at least 10 mm Rain (days)"
-    spatial_agg: max
-    vmin: 0
-    vmax: 100
-    
-  - name: r20mm
-    variable: r20mm
-    data_dir: "data/outputs/r20mm"
-    output: "r20mm_bioregion_timeslices.png"
-    cmap: YlGnBu
-    legend_label: "Days with at least 20 mm rain (days)"
-    spatial_agg: max          # options: mean, max, min, median
-    vmin: 0                   # Optional: adjust based on expected range
-    vmax: 40
+# - name: r99p
+#   variable: r99p_anomaly
+#   data_dir: "data/outputs/r99p"
+#   cmap: RdBu
+#   legend_label: "R99p Anomaly (Δ mm vs 1995–2014)"
+#   anomaly: true
+#   
+# - name: spi3
+#   variable: spi3
+#   data_dir: "data/outputs/spi"
+#   cmap: RdBu
+#   legend_label: "Standardized Precipitation Index (3-month) — SPI < -1 dry, SPI > 1 wet"
+#   anomaly: false
+#   vmin: -1.5
+#   vmax:  1.5
+#   
+# - name: spi6
+#   variable: spi6
+#   data_dir: "data/outputs/spi"
+#   cmap: RdBu
+#   legend_label: "Standardized Precipitation Index (6-month) — SPI < -1 dry, SPI > 1 wet"
+#   anomaly: false
+#   vmin: -1.5
+#   vmax:  1.5
+#   
+# - name: spi12
+#   variable: spi12
+#   data_dir: "data/outputs/spi"
+#   cmap: RdBu
+#   legend_label: "Standardized Precipitation Index (12-month) — SPI < -1 dry, SPI > 1 wet"
+#   anomaly: false
+#   vmin: -1.5
+#   vmax:  1.5
+#   
+# - name: sdii
+#   variable: sdii_anomaly
+#   data_dir: "data/outputs/sdii"
+#   cmap: RdBu
+#   legend_label: "SDII Anomaly (Δ mm/day vs 1995–2014)"
+#   anomaly: true
+#   
+# - name: sdii
+#   variable: sdii
+#   data_dir: "data/outputs/sdii"
+#   cmap: YlGnBu
+#   legend_label: "SDII (mm/day)"
+#   anomaly: false
+#   
+# - name: rx1day
+#   variable: rx1day_anomaly
+#   data_dir: "data/outputs/rx1day"
+#   cmap: RdBu                 # red = decrease, blue = increase (flip to RdBu_r if you prefer the opposite)
+#   legend_label: "Rx1day Anomaly (Δ mm vs 1995–2014)"
+#   anomaly: true
+#   # Optional manual bounds if you want a fixed scale:
+#   # vmin: -50
+#   # vmax:  50
+# 
+# # --- Rx1day absolute (climatology/context) ---
+# - name: rx1day
+#   variable: rx1day
+#   data_dir: "data/outputs/rx1day"
+#   cmap: YlGnBu               # sequential reads well for amounts
+#   legend_label: "Rx1day (Wettest Day, mm)"
+#   anomaly: false
+#   # Optional bounds (tune after first run):
+#   # vmin: 20
+#   # vmax: 200
+#   
 
+- name: rx5day
+  variable: rx5day_anomaly
+  data_dir: "data/outputs/rx5day"
+  cmap: RdBu
+  legend_label: "Rx5day Anomaly (Δ mm vs 1995–2014)"
+  anomaly: true
+  # vmin: -100   # optional fixed scale suggestion
+  # vmax:  100
+  
+
+- name: rx5day
+  variable: rx5day
+  data_dir: "data/outputs/rx5day"
+  cmap: YlGnBu
+  legend_label: "Rx5day (Wettest 5-day Total, mm)"
+  anomaly: false
+  # vmin: 50     # tune after first pass
+  # vmax: 300

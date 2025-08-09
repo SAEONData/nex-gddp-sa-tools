@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """
-r95p_compute.py
+r99p_compute.py
 ---------------------------------------------------------------
-Compute R95p: Total precipitation (mm) from "very wet days"
-(> 95th percentile threshold computed from the baseline period, per grid cell).
+Compute R99p: Total precipitation (mm) from "extreme wet days"
+(> 99th percentile threshold computed from the baseline period, per grid cell).
 
 - Baseline percentile is computed once per model from historical wet days (PR ≥ wetday_threshold)
 - For each slice/scenario, days > baseline threshold are summed (mm) over the slice aggregation window
@@ -44,19 +44,19 @@ def _select_bbox(ds: xr.Dataset, lat_bounds, lon_bounds) -> xr.Dataset:
 
 def run(cfg):
     t0 = time.time()
-    print("🧮 Starting R95p processing...")
+    print("🧮 Starting R99p processing...")
 
     # ── config
     lat_bounds = [cfg["region"]["lat_min"], cfg["region"]["lat_max"]]
     lon_bounds = [cfg["region"]["lon_min"], cfg["region"]["lon_max"]]
 
-    r95_cfg   = cfg.get("r95p", {})
-    wetday_threshold = float(r95_cfg.get("wetday_threshold_mm", 1.0))  # mm/day to define "wet day"
-    baseline_slice   = r95_cfg.get("baseline_slice", "Baseline (1995–2014)")
-    aggr             = r95_cfg.get("aggregation", "annual")
+    r99_cfg   = cfg.get("r99p", {})
+    wetday_threshold = float(r99_cfg.get("wetday_threshold_mm", 1.0))  # mm/day to define "wet day"
+    baseline_slice   = r99_cfg.get("baseline_slice", "Baseline (1995–2014)")
+    aggr             = r99_cfg.get("aggregation", "annual")
     aggr_map         = {"monthly": "MS", "seasonal": "QS-DEC", "annual": "YS"}
     aggr_code        = aggr_map.get(aggr, "YS")
-    percentile       = int(r95_cfg.get("percentile", 95))
+    percentile       = int(r99_cfg.get("percentile", 99))
 
     time_slices = cfg.get("time_slices", {})
     experiments = cfg.get("experiments", {}).get("select", ["historical"])
@@ -64,13 +64,13 @@ def run(cfg):
     # paths
     ROOT       = Path(__file__).resolve().parents[2]
     DATA_DIR   = ROOT / "data" / "pr"
-    OUTPUT_DIR = ROOT / "data" / "outputs" / "r95p"
+    OUTPUT_DIR = ROOT / "data" / "outputs" / "r99p"
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 
     model_file_counts = defaultdict(int)
     percentile_cache = {}
 
-    # ── Step 1: compute baseline 95th-percentile threshold (per model)
+    # ── Step 1: compute baseline 99th-percentile threshold (per model)
     print(f"\n📊 Computing baseline {percentile}th percentile from: {baseline_slice}")
     baseline_start, baseline_end = time_slices.get(baseline_slice, [None, None])
     hist_files = sorted(Path(p).resolve() for p in glob.glob(str(DATA_DIR / "**/historical/*.nc"), recursive=True))
@@ -88,22 +88,21 @@ def run(cfg):
             pr = convert_units_to(ds["pr"], "mm/day")
             pr_wet = pr.where(pr >= wetday_threshold)
 
-            # Single percentile over the baseline period (ETCCDI method)
-            thr95 = pr_wet.quantile(percentile / 100.0, dim="time", skipna=True)
+            thr99 = pr_wet.quantile(percentile / 100.0, dim="time", skipna=True)
 
             try:
                 model_name = nc_file.parts[nc_file.parts.index("historical") - 1]
             except ValueError:
                 model_name = ds.attrs.get("source_id") or ds.attrs.get("model_id") or nc_file.stem.split("_")[2]
 
-            percentile_cache[model_name] = thr95
+            percentile_cache[model_name] = thr99
             print(f"   ✓ Baseline threshold computed for {model_name}")
 
         except Exception as e:
             print(f"   ⚠️ Skipped baseline for {nc_file.name}: {e}")
 
     if not percentile_cache:
-        print("❌ No baseline percentiles computed. Aborting R95p.")
+        print("❌ No baseline percentiles computed. Aborting R99p.")
         return
 
     # ── Step 2: apply baseline thresholds to each experiment/slice and ensemble-average
@@ -147,16 +146,13 @@ def run(cfg):
 
                     thr = percentile_cache[model_name]
 
-                    # Very wet day mask against baseline threshold
                     very_wet = pr_wet > thr
-
-                    # Sum precipitation on very wet days per aggregated period, then average across periods in the slice
-                    prc_verywet_period = pr_wet.where(very_wet).resample(time=aggr_code).sum(dim="time")  # mm per period
+                    prc_verywet_period = pr_wet.where(very_wet).resample(time=aggr_code).sum(dim="time")
                     if prc_verywet_period.size == 0:
                         continue
-                    r95p_mm = prc_verywet_period.mean(dim="time")  # mean over periods of the slice
+                    r99p_mm = prc_verywet_period.mean(dim="time")
 
-                    model_data.append(r95p_mm)
+                    model_data.append(r99p_mm)
                     model_names.append(model_name)
                     model_file_counts[model_name] += 1
 
@@ -174,7 +170,7 @@ def run(cfg):
 
             out_da = ensemble_mean.assign_attrs({
                 "units": "mm",
-                "long_name": f"R95p: total precipitation from days > {percentile}th percentile (baseline)",
+                "long_name": f"R99p: total precipitation from days > {percentile}th percentile (baseline)",
                 "wetday_threshold": f"{wetday_threshold} mm/day",
                 "percentile": percentile,
                 "baseline_slice": baseline_slice,
@@ -183,8 +179,8 @@ def run(cfg):
             })
 
             label = _label_slug(slice_name)
-            out_nc = OUTPUT_DIR / f"r95p_ensemble_mean_{experiment}_{label}.nc"
-            xr.Dataset({"r95p": out_da}).to_netcdf(out_nc)
+            out_nc = OUTPUT_DIR / f"r99p_ensemble_mean_{experiment}_{label}.nc"
+            xr.Dataset({"r99p": out_da}).to_netcdf(out_nc)
             print(f"   ✅ Saved → {out_nc.name}")
 
     print("\n📊 File count per model:")

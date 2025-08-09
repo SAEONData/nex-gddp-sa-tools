@@ -2,150 +2,185 @@
 """
 r99ptot_compute.py
 ---------------------------------------------------------------
-Calculate CMIP6 R99pTOT (% rainfall from extremely wet days) using
-xclim’s icclim.R99PTOT indicator. Mirrors r95ptot_compute.py style.
+Compute R99pTOT: Percentage of total precipitation from "extremely wet days"
+(> 99th percentile threshold from the baseline period, per grid cell).
+
+- Baseline (historical) percentile is computed once per model and reused.
+- Output is the multi-model ensemble mean per experiment and time slice.
+- Units: %
 """
 
 from pathlib import Path
-import glob, time, os
+import glob, time, warnings
 from collections import defaultdict
-import warnings
 
-import xarray as xr
-from xclim.core.indicator import registry
-from dask.diagnostics import ProgressBar
 import dask
+from dask.diagnostics import ProgressBar
+import xarray as xr
+import numpy as np
+from xclim.core.units import convert_units_to
 
-warnings.filterwarnings("ignore")
-os.environ["HDF5_USE_FILE_LOCKING"] = "FALSE"
+warnings.filterwarnings("ignore", message=".*already exists and will be overwritten.")
 
-def open_dataset_safe(path: Path, chunks) -> xr.Dataset:
-    try:
-        return xr.open_dataset(path, chunks=chunks)
-    except Exception:
-        return xr.open_dataset(path, engine="netcdf4", chunks=chunks, lock=True)
+def _label_slug(s: str) -> str:
+    return (
+        s.lower()
+         .replace(" ", "_")
+         .replace("(", "").replace(")", "")
+         .replace("–", "-")
+    )
 
-def safe_subset(ds: xr.Dataset, lat_bounds, lon_bounds) -> xr.Dataset | None:
-    lat0, lat1 = lat_bounds
-    lon0, lon1 = lon_bounds
-    lat_slice = slice(lat1, lat0) if ds.lat[0] > ds.lat[-1] else slice(lat0, lat1)
-
-    if (ds.lon > 180).all():
-        lon0 = (lon0 + 360) % 360
-        lon1 = (lon1 + 360) % 360
-
-    ds_sub = ds.sel(lat=lat_slice, lon=slice(lon0, lon1))
-
-    if ds_sub.dims.get("lon", 0) == 0:
-        lon_vals = ds.lon
-        mask = (lon_vals >= lon0) & (lon_vals <= lon1)
-        ds_sub = ds.sel(lat=lat_slice).where(mask, drop=True)
-
-    return ds_sub if ds_sub.dims.get("lat", 0) and ds_sub.dims.get("lon", 0) else None
+def _select_bbox(ds: xr.Dataset, lat_bounds, lon_bounds) -> xr.Dataset:
+    """Subset robustly regardless of ascending/descending coords."""
+    if "lat" not in ds.coords or "lon" not in ds.coords:
+        raise ValueError("Dataset is missing 'lat' and/or 'lon'.")
+    lat = ds["lat"]; lon = ds["lon"]
+    lat_asc = bool(lat[0] < lat[-1])
+    lon_asc = bool(lon[0] < lon[-1])
+    lat_slice = slice(lat_bounds[0], lat_bounds[1]) if lat_asc else slice(lat_bounds[1], lat_bounds[0])
+    lon_slice = slice(lon_bounds[0], lon_bounds[1]) if lon_asc else slice(lon_bounds[1], lon_bounds[0])
+    return ds.sel(lat=lat_slice, lon=lon_slice)
 
 def run(cfg):
     t0 = time.time()
-    print("Starting R99pTOT processing …\n")
+    print("🧮 Starting R99pTOT processing...")
 
+    # ── config
     lat_bounds = [cfg["region"]["lat_min"], cfg["region"]["lat_max"]]
     lon_bounds = [cfg["region"]["lon_min"], cfg["region"]["lon_max"]]
-    rcfg       = cfg["r99ptot"]
 
-    thresh_mm  = rcfg.get("threshold_mm", 1.0)
-    aggr_code  = rcfg.get("aggregation_code", "YS")
-    aggr_label = rcfg.get("aggregation", "annual")
-    ref_start  = rcfg.get("reference_start", "1981-01-01")
-    ref_end    = rcfg.get("reference_end",   "2010-12-31")
+    r99_cfg   = cfg.get("r99ptot", {})
+    wetday_threshold = float(r99_cfg.get("wetday_threshold_mm", 1.0))  # mm/day
+    baseline_slice   = r99_cfg.get("baseline_slice", "Baseline (1995–2014)")
+    percentile       = int(r99_cfg.get("percentile", 99))              # default 99
 
-    ROOT      = Path(__file__).resolve().parents[2]
-    DATA_DIR  = ROOT / "data" / "pr"
-    OUT_DIR   = ROOT / "data" / "outputs" / "r99ptot"
-    EXPER     = cfg.get("experiments", {}).get("select", ["historical"])
-    MIN_BYTES = 500_000
+    time_slices = cfg.get("time_slices", {})
+    experiments = cfg.get("experiments", {}).get("select", ["historical"])
 
-    R99_cls = registry.get("icclim.R99PTOT")
-    if R99_cls is None:
-        raise RuntimeError("'icclim.R99PTOT' not registered in xclim.")
-    R99 = R99_cls()
-    chunks = {"time": -1}
+    # paths
+    ROOT       = Path(__file__).resolve().parents[2]
+    DATA_DIR   = ROOT / "data" / "pr"
+    OUTPUT_DIR = ROOT / "data" / "outputs" / "r99ptot"
+    OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 
-    for exp in EXPER:
-        print(f"\n▶︎ Experiment: {exp}")
-        files = sorted(Path(p).resolve()
-                       for p in glob.glob(str(DATA_DIR / f"**/{exp}/*.nc"), recursive=True))
-        print(f"   {len(files)} files found")
+    model_file_counts = defaultdict(int)
+    percentile_cache = {}
 
-        if not files:
-            continue
+    # ── Step 1: Compute baseline 99th percentile thresholds (per model)
+    print(f"\n📊 Computing baseline {percentile}th percentile from: {baseline_slice}")
+    baseline_start, baseline_end = time_slices.get(baseline_slice, [None, None])
+    hist_files = sorted(Path(p).resolve() for p in glob.glob(str(DATA_DIR / "**/historical/*.nc"), recursive=True))
 
-        model_data, model_names = [], []
+    for nc_file in hist_files:
+        try:
+            ds = xr.open_dataset(nc_file, chunks={"time": -1})
+            ds = _select_bbox(ds, lat_bounds, lon_bounds)
+            ds = ds.sel(time=slice(baseline_start, baseline_end))
 
-        for i, f in enumerate(files, 1):
-            print(f" [{i}/{len(files)}] {f.name}")
+            if "pr" not in ds:
+                print(f"   ⚠️ Missing 'pr' in {nc_file.name}, skipping baseline.")
+                continue
+
+            pr = convert_units_to(ds["pr"], "mm/day")
+            pr_wet = pr.where(pr >= wetday_threshold)
+
+            pct = pr_wet.quantile(percentile / 100.0, dim="time", skipna=True)
+
             try:
-                if f.stat().st_size < MIN_BYTES:
-                    print("   skipped (file too small)")
-                    continue
+                model_name = nc_file.parts[nc_file.parts.index("historical") - 1]
+            except ValueError:
+                model_name = ds.attrs.get("source_id") or ds.attrs.get("model_id") or nc_file.stem.split("_")[2]
 
-                ds0 = open_dataset_safe(f, chunks=chunks)
-                ds0 = safe_subset(ds0, lat_bounds, lon_bounds)
-                if ds0 is None:
-                    print("   skipped (outside bounding box)")
-                    continue
+            percentile_cache[model_name] = pct
+            print(f"   ✓ Baseline threshold computed for {model_name}")
 
-                if "pr" not in ds0:
-                    raise ValueError("Missing 'pr' variable")
+        except Exception as e:
+            print(f"   ⚠️ Skipped baseline for {nc_file.name}: {e}")
 
-                pr = ds0["pr"] * 86400.0
-                pr.attrs["units"] = "mm/day"
+    if not percentile_cache:
+        print("❌ No baseline percentiles computed. Aborting R99pTOT.")
+        return
 
-                ref = pr.sel(time=slice(ref_start, ref_end))
-                wet = ref.where(ref > thresh_mm)
-
-                wet_count = wet.count().compute()
-                if wet_count < 10:
-                    raise ValueError(f"Too few wet days for threshold: {wet_count.values}")
-
-                pr_per = wet.quantile(0.99, dim="time").compute()
-                pr_per.attrs["units"] = "mm/day"
-
-                r99 = R99(pr=pr, pr_per=pr_per, freq=aggr_code).compute()
-                if r99.isnull().all():
-                    raise ValueError("All values are NaN")
-
-                model_data.append(r99.mean("time"))
-
-                try:
-                    model_names.append(f.parts[f.parts.index(exp) - 1])
-                except ValueError:
-                    model_names.append(f.stem.split("_")[2])
-
-            except Exception as exc:
-                print(f"   ⚠️  {f.name}: {exc}")
-
-        if not model_data:
-            print("   ❌  No valid outputs for this experiment")
+    # ── Step 2: Apply baseline to all experiments/time slices, then ensemble
+    for experiment in experiments:
+        print(f"\n📁 Experiment: {experiment}")
+        nc_files = sorted(Path(p).resolve() for p in glob.glob(str(DATA_DIR / f"**/{experiment}/*.nc"), recursive=True))
+        if not nc_files:
+            print("   ⚠️ No files found.")
             continue
 
-        with ProgressBar():
-            stacked = xr.concat(dask.compute(*model_data), dim="model")
-            stacked["model"] = model_names
-            ens_mean = stacked.mean("model")
+        slice_names = ["Baseline (1995–2014)"] if experiment == "historical" else \
+                      [n for n in time_slices if not n.startswith("Baseline")]
 
-        out_nc = OUT_DIR / f"r99ptot_ensemble_mean_{exp}.nc"
-        out_nc.parent.mkdir(parents=True, exist_ok=True)
+        for slice_name in slice_names:
+            start, end = time_slices.get(slice_name, [None, None])
+            print(f"\n→ Time slice: {slice_name}  ({start} to {end})")
 
-        attrs = dict(
-            title=f"R99pTOT Ensemble Mean – {exp}",
-            description=(f"Fraction of total precipitation on >99th-pct extremely wet days "
-                         f"(wet-day > {thresh_mm} mm)\n"
-                         f"Reference: {ref_start} to {ref_end}, Aggregation: {aggr_label}"),
-            units="%",
-            created_by="r99ptot_compute.py",
-            models_included=", ".join(sorted(set(model_names))),
-        )
+            model_data, model_names = [], []
 
-        xr.Dataset({"r99ptot": ens_mean}, attrs=attrs).to_netcdf(out_nc)
-        print(f"   ✅ Saved → {out_nc}")
+            for nc_file in nc_files:
+                try:
+                    ds = xr.open_dataset(nc_file, chunks={"time": -1})
+                    ds = _select_bbox(ds, lat_bounds, lon_bounds)
+                    ds = ds.sel(time=slice(start, end))
 
-    print(f"\n✔︎ Done in {time.time() - t0:.1f}s")
+                    if "pr" not in ds:
+                        print(f"   ⚠️ Missing 'pr' in {nc_file.name}, skipping.")
+                        continue
+
+                    pr = convert_units_to(ds["pr"], "mm/day")
+                    pr_wet = pr.where(pr >= wetday_threshold)
+
+                    try:
+                        model_name = nc_file.parts[nc_file.parts.index(experiment) - 1]
+                    except ValueError:
+                        model_name = ds.attrs.get("source_id") or ds.attrs.get("model_id") or nc_file.stem.split("_")[2]
+
+                    if model_name not in percentile_cache:
+                        print(f"   ⚠️ No baseline pct for {model_name}, skipping.")
+                        continue
+
+                    thr = percentile_cache[model_name]
+                    very_wet = pr_wet > thr
+
+                    prc_vwet  = pr_wet.where(very_wet).sum(dim="time")  # mm
+                    prc_total = pr_wet.sum(dim="time")                  # mm
+
+                    with np.errstate(invalid="ignore", divide="ignore"):
+                        r99ptot = (prc_vwet / prc_total) * 100.0
+                        r99ptot = r99ptot.where(np.isfinite(r99ptot))
+
+                    model_data.append(r99ptot)
+                    model_names.append(model_name)
+                    model_file_counts[model_name] += 1
+
+                except Exception as e:
+                    print(f"   ⚠️ Skipped {nc_file.name}: {e}")
+
+            if not model_data:
+                print(f"   ❌ No valid outputs for {experiment} / {slice_name}")
+                continue
+
+            with ProgressBar():
+                computed = dask.compute(*model_data)
+            stack = xr.concat(computed, dim="model").assign_coords(model=("model", model_names))
+            ensemble_mean = stack.mean(dim="model")
+
+            out_da = ensemble_mean.assign_attrs({
+                "units": "%",
+                "long_name": f"R99pTOT: % of total precipitation from days > {percentile}th percentile (baseline)",
+                "wetday_threshold": f"{wetday_threshold} mm/day",
+                "percentile": percentile,
+                "baseline_slice": baseline_slice,
+            })
+
+            label = _label_slug(slice_name)
+            out_nc = OUTPUT_DIR / f"r99ptot_ensemble_mean_{experiment}_{label}.nc"
+            xr.Dataset({"r99ptot": out_da}).to_netcdf(out_nc)
+            print(f"   ✅ Saved → {out_nc.name}")
+
+    print("\n📊 File count per model:")
+    for m in sorted(model_file_counts):
+        print(f"   {m:30} {model_file_counts[m]:>4d}")
+
+    print(f"\n⏱️ Completed in {round(time.time() - t0, 1)} s.")
