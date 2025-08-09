@@ -1,6 +1,52 @@
 # nex-gddp-sa-tools
 Helper scripts for exploring, downloading, and analysing **NASA NEX‑GDDP‑CMIP6** down‑scaled climate projections for the South‑African domain (SAWS + SAEON).
 
+## Climate Indices Reference
+
+This project supports a wide range of **rainfall** and **temperature**-based climate indices.  
+Each entry includes a description, units, and guidance for interpreting **anomaly plots** (difference from a baseline period).  
+
+### Rainfall Indices
+
+| Short Name  | Description                                              | Units    | Anomaly Interpretation & Suggested Colormap |
+| ----------- | -------------------------------------------------------- | -------- | -------------------------------------------- |
+| **CDD**     | Max consecutive dry days (PR < 1 mm/day)                 | days     | ↑ (brown) = longer dry spells; ↓ (blue) = shorter; `cmap: BrBG` |
+| **CWD**     | Max consecutive wet days (PR ≥ 1 mm/day)                 | days     | ↑ (blue) = longer wet spells; ↓ (brown) = shorter; `cmap: BrBG_r` |
+| **R10mm**   | Days with ≥ 10 mm of rainfall                            | days     | ↑ (blue) = more heavy-rain days; ↓ (brown) = fewer; `cmap: BrBG_r` |
+| **R20mm**   | Days with ≥ 20 mm of rainfall                            | days     | Same as R10mm; `cmap: BrBG_r` |
+| **PRCPTOT** | Annual rainfall on wet days (PR ≥ 1 mm/day)              | mm       | ↑ (blue) = wetter; ↓ (brown) = drier; `cmap: BrBG_r` |
+| **R95pTOT** | % of rainfall from very wet days (>95th percentile)      | %        | ↑ (blue) = more dominated by extreme rain; ↓ (brown); `cmap: BrBG_r` |
+| **R99pTOT** | % of rainfall from extremely wet days (>99th percentile) | %        | Similar to R95pTOT; `cmap: BrBG_r` |
+| **R95p**    | Total rainfall from very wet days (>95th percentile)     | mm       | ↑ (blue) = more extreme rain; ↓ (brown); `cmap: BrBG_r` |
+| **R99p**    | Total rainfall from extreme days (>99th percentile)      | mm       | ↑ (blue) = more extreme rain; ↓ (brown); `cmap: BrBG_r` |
+| **SPI**     | Standardised Precipitation Index (3, 6, 12 months)       | unitless | Positive (blue) = wetter; Negative (brown) = drier; `cmap: BrBG` |
+| **SDII**    | Rainfall intensity on wet days                           | mm/day   | ↑ (blue) = heavier average rain per wet day; ↓ (brown); `cmap: BrBG_r` |
+| **Rx1day**  | Wettest day of the year                                  | mm       | ↑ (blue) = heavier extremes; ↓ (brown); `cmap: BrBG_r` |
+| **Rx5day**  | Wettest 5-day period of the year                         | mm       | ↑ (blue) = heavier extremes; ↓ (brown); `cmap: BrBG_r` |
+
+### Temperature Indices
+
+| Short Name  | Description                                                       | Units    | Anomaly Interpretation & Suggested Colormap |
+| ----------- | ----------------------------------------------------------------- | -------- | -------------------------------------------- |
+| **FD**      | Days with minimum temperature below 0°C (frost days)              | days     | ↑ (blue) = more frost; ↓ (red) = fewer; `cmap: RdBu_r` |
+| **TNlt2**   | Days with minimum temperature below 2°C                           | days     | Same as FD; `cmap: RdBu_r` |
+| **TXx**     | Warmest daily maximum temperature                                 | °C       | ↑ (red) = hotter extremes; ↓ (blue) = cooler; `cmap: RdBu` |
+| **TNn**     | Coldest daily minimum temperature                                 | °C       | ↑ (red) = warmer cold nights; ↓ (blue) = colder; `cmap: RdBu_r` |
+| **WSDI**    | Warm spell duration: TX > 90th percentile for ≥ 6 consecutive days| days     | ↑ (red) = more warm spells; ↓ (blue) = fewer; `cmap: RdBu` |
+| **CSDI**    | Cold spell duration: TN < 10th percentile for ≥ 6 consecutive days| days     | ↑ (blue) = more cold spells; ↓ (red) = fewer; `cmap: RdBu_r` |
+| **TXgt50p** | % of days with TX above the 50th percentile                       | %        | ↑ (red) = more warm days; ↓ (blue) = fewer; `cmap: RdBu` |
+| **TXge30**  | Days with TX ≥ 30°C                                               | days     | ↑ (red) = more hot days; ↓ (blue) = fewer; `cmap: RdBu` |
+| **TXdTNd**  | Consecutive days where both TX & TN > 95th percentile             | events   | ↑ (red) = more compound heat events; ↓ (blue) = fewer; `cmap: RdBu` |
+| **TNx**     | Warmest daily minimum temperature (hottest night)                 | °C       | ↑ (red) = hotter nights; ↓ (blue) = cooler nights; `cmap: RdBu` |
+| **TXn**     | Coldest daily maximum temperature (coldest day)                   | °C       | ↑ (red) = warmer cold days; ↓ (blue) = colder cold days; `cmap: RdBu_r` |
+| **TX10p**   | % of days with TX < 10th percentile (cool days)                   | %        | ↑ (blue) = more cool days; ↓ (red) = fewer; `cmap: RdBu_r` |
+| **TX90p**   | % of days with TX > 90th percentile (hot days)                    | %        | ↑ (red) = more hot days; ↓ (blue) = fewer; `cmap: RdBu` |
+| **TN10p**   | % of days with TN < 10th percentile (cold nights)                 | %        | ↑ (blue) = more cold nights; ↓ (red) = fewer; `cmap: RdBu_r` |
+| **TN90p**   | % of days with TN > 90th percentile (warm nights)                 | %        | ↑ (red) = more warm nights; ↓ (blue) = fewer; `cmap: RdBu` |
+
+
+
+
 * **Catalogue explorer** – list models, experiments, runs, variables  
 * **Bulk downloader** – fetch daily precipitation & temperature for a South‑Africa bounding box via YAML parameters  
 
