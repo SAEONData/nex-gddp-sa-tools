@@ -1,18 +1,118 @@
 # nex-gddp-sa-tools
-Helper scripts for exploring, downloading, and analysing **NASA NEX‑GDDP‑CMIP6** down‑scaled climate projections for the South‑African domain (SAWS + SAEON).
 
-* **Catalogue explorer** – list models, experiments, runs, variables  
-* **Bulk downloader** – fetch daily precipitation & temperature for a South‑Africa bounding box via YAML parameters  
-
-* **Download verification** – check how many NetCDFs have been downloaded and visualise % completeness
-* **Climate indices (modular)** – calculate indices via YAML configs and model ensemble
-* **plotting** – generate by-bioregion time slice plots using `plot_config.yml`
-* **(Coming soon)** web visualisation & map export tools
-* 
-> **Data source**  
-> NASA Earth Exchange Global Daily Downscaled Projections (NEX‑GDDP‑CMIP6) served via NCCS THREDDS.
+Helper scripts for exploring, downloading, and analysing **NASA NEX-GDDP-CMIP6** downscaled climate projections for the South African domain (SAWS + SAEON).
 
 ---
+
+## Project Purpose
+
+This repository provides tools for **downloading, processing, and visualising** downscaled CMIP6 climate projections for South Africa.  
+It is designed to streamline workflows for scientists, analysts, and policy teams working with NEX-GDDP-CMIP6 data, making it easier to move from raw datasets to **interpretable climate insights**.
+
+---
+
+## Why This Matters
+
+Interpreting climate data can be challenging — particularly for **anomaly maps**, where colours can mean opposite things depending on the variable.  
+We have found that **colour interpretation mattered more for understanding** than highly technical details.  
+To make outputs more consistent and accessible, we’ve included a **Colour Reference & Interpretation Guide** alongside index definitions.
+
+---
+
+## Climate Indices – Reference & Plotting Guide
+
+This project computes a range of rainfall and temperature indices from NASA NEX-GDDP-CMIP6 downscaled climate data for South Africa.
+
+For each index, you can plot:
+- **Absolute values** (climatology)
+- **Anomalies** (change relative to a baseline period)
+
+---
+
+### Colour Reference & Interpretation Guide
+
+We’ve observed that:
+- The same colour can imply opposite impacts depending on the metric (e.g., more rainfall vs. more extreme heat).
+- Non-technical users interpret maps faster when **colour meaning is explained alongside the data**.
+- A simple, consistent mapping of positive/negative anomalies to colours greatly reduces confusion.
+
+The tables below provide:
+1. **Indices used in this project**  
+2. **Suggested anomaly interpretation & colours** – quick visual cue for positive and negative changes  
+3. **Suggested absolute colour palettes** – sequential scales for climatologies
+
+These are **guidelines**, not strict rules — adapt them to your style guide or plotting library.
+
+---
+
+### How to Read Anomalies
+
+- **Positive anomaly** = increase relative to baseline  
+- **Negative anomaly** = decrease relative to baseline  
+- Some indices are “beneficial” when lower (e.g., fewer frost days) — so a **negative anomaly** may still indicate warming  
+- **Anomaly colours**: suggestions only — actual plots can use any diverging palette  
+- **Absolute colours**: sequential palettes for climatologies
+
+---
+
+## Rainfall Indices
+
+| Short name  | Description                                              | Units    | Suggested anomaly interpretation & colours | Suggested absolute colours |
+| ----------- | -------------------------------------------------------- | -------- | ------------------------------------------- | -------------------------- |
+| **CDD**     | Max consecutive dry days (PR < 1 mm/day)                 | days     | Pos: longer dry spells 🟥, Neg: shorter 🟦 | Sequential yellow–red (`YlOrRd`) |
+| **CWD**     | Max consecutive wet days (PR ≥ 1 mm/day)                  | days     | Pos: longer wet spells 🟦, Neg: shorter 🟥 | Sequential blue–green (`YlGnBu`) |
+| **R10mm**   | Days with ≥ 10 mm rainfall                               | days     | Pos: more heavy-rain days 🟦, Neg: fewer 🟥 | Sequential blue (`Blues`) |
+| **R20mm**   | Days with ≥ 20 mm rainfall                               | days     | Pos: more very-heavy-rain days 🟦, Neg: fewer 🟥 | Sequential blue (`Blues`) |
+| **PRCPTOT** | Annual rainfall on wet days (PR ≥ 1 mm/day)              | mm       | Pos: wetter years 🟦, Neg: drier years 🟥 | Sequential blue–green (`YlGnBu`) |
+| **R95pTOT** | % of rainfall from very wet days (>95th percentile)      | %        | Pos: larger share 🟦, Neg: smaller share 🟥 | Sequential blue (`Blues`) |
+| **R99pTOT** | % of rainfall from extremely wet days (>99th percentile) | %        | Pos: larger share 🟦, Neg: smaller share 🟥 | Sequential blue (`Blues`) |
+| **R95p**    | Total rainfall from very wet days (>95th percentile)     | mm       | Pos: more rain 🟦, Neg: less rain 🟥 | Sequential blue (`Blues`) |
+| **R99p**    | Total rainfall from extreme days (>99th percentile)      | mm       | Pos: more rain 🟦, Neg: less rain 🟥 | Sequential blue (`Blues`) |
+| **SPI**     | Standardised Precipitation Index (3, 6, 12 months)       | –        | Pos: wetter than avg 🟦, Neg: drier than avg 🟥 | Diverging blue–brown (`BrBG`) |
+| **SDII**    | Rainfall intensity on wet days                           | mm/day   | Pos: higher intensity 🟦, Neg: lower 🟥 | Sequential blue (`Blues`) |
+| **Rx1day**  | Wettest day of the year                                  | mm       | Pos: more intense 🟦, Neg: less intense 🟥 | Sequential blue (`Blues`) |
+| **Rx5day**  | Wettest 5-day period of the year                         | mm       | Pos: more intense 🟦, Neg: less intense 🟥 | Sequential blue (`Blues`) |
+
+---
+
+## Temperature Indices
+
+| Short name  | Description                                              | Units    | Suggested anomaly interpretation & colours | Suggested absolute colours |
+| ----------- | ----------------------------------------------------------------- | -------- | ------------------------------------------- | -------------------------- |
+| **FD**      | Days with min temp < 0°C (frost days)                             | days     | Pos: more frost days 🟦, Neg: fewer / warming 🟥 | Sequential blue (`Blues`) |
+| **TNlt2**   | Days with min temp < 2°C                                          | days     | Pos: more near-frost days 🟦, Neg: fewer / warming 🟥 | Sequential blue (`Blues`) |
+| **TXx**     | Warmest daily max temperature                                     | °C       | Pos: hotter extremes 🟥, Neg: cooler extremes 🟦 | Sequential warm (`YlOrRd`) |
+| **TNn**     | Coldest daily min temperature                                     | °C       | Pos: warmer coldest nights 🟥, Neg: colder 🟦 | Sequential blue (`Blues`) |
+| **WSDI**    | Warm spell duration: TX > 90th percentile for ≥6 days             | days     | Pos: more warm-spell days 🟥, Neg: fewer 🟦 | Sequential warm (`YlOrRd`) |
+| **CSDI**    | Cold spell duration: TN < 10th percentile for ≥6 days             | days     | Pos: more cold-spell days 🟦, Neg: fewer / warming 🟥 | Sequential blue (`Blues`) |
+| **TXgt50p** | % of days with TX > 50th percentile                               | %        | Pos: more warm days 🟥, Neg: fewer 🟦 | Sequential warm (`YlOrRd`) |
+| **TXge30**  | Days with TX ≥ 30°C                                               | days     | Pos: more hot days 🟥, Neg: fewer 🟦 | Sequential warm (`YlOrRd`) |
+| **TXdTNd**  | Consecutive days with both TX & TN > 95th percentile              | events   | Pos: more heatwave events 🟥, Neg: fewer 🟦 | Sequential warm (`YlOrRd`) |
+| **TNx**     | Warmest daily minimum temperature (hottest night)                 | °C       | Pos: warmer hottest nights 🟥, Neg: cooler 🟦 | Sequential warm (`YlOrRd`) |
+| **TXn**     | Coldest daily maximum temperature (coldest day)                   | °C       | Pos: warmer coldest days 🟥, Neg: colder 🟦 | Sequential blue (`Blues`) |
+| **TX10p**   | % of days with TX < 10th percentile (cool days)                   | %        | Pos: more cool days 🟦, Neg: fewer / warming 🟥 | Sequential blue (`Blues`) |
+| **TX90p**   | % of days with TX > 90th percentile (hot days)                    | %        | Pos: more hot days 🟥, Neg: fewer 🟦 | Sequential warm (`YlOrRd`) |
+| **TN10p**   | % of days with TN < 10th percentile (cold nights)                 | %        | Pos: more cold nights 🟦, Neg: fewer / warming 🟥 | Sequential blue (`Blues`) |
+| **TN90p**   | % of days with TN > 90th percentile (warm nights)                 | %        | Pos: more warm nights 🟥, Neg: fewer 🟦 | Sequential warm (`YlOrRd`) |
+
+---
+---
+
+# Core Tools & Workflow
+
+The repository is organised into modular components that take you from **raw climate projections** to **interpretable, ready-to-use outputs**.
+
+Each module can be run independently, but they are designed to work together as a **full processing pipeline**:
+
+- **Catalogue explorer** – list available models, experiments, ensemble members, and variables  
+- **Bulk downloader** – fetch daily precipitation and temperature data for a South Africa bounding box using YAML configuration parameters  
+- **Download verification** – automatically check dataset completeness and flag missing or duplicate NetCDFs, with visual summaries  
+- **Climate indices (modular)** – calculate rainfall and temperature indices from NEX-GDDP-CMIP6 using YAML configs and produce model ensemble means  
+- **Plotting** – generate time-slice maps by bioregion (or municipality) using `plot_config.yml` for colour scales, labels, and overlays  
+
+These tools allow you to **mix and match steps** depending on your needs — from quick one-off data checks to full-scale analysis workflows.
+
+
 
 ## Quick‑start
 
@@ -265,49 +365,7 @@ ACCESS-CM2    tasmin     ✅                🔴 87/86       ⚠️  0/86       
 
 The `src/climate_indices/` folder contains modular scripts that compute climate indices using NEX‑GDDP data and aggregate them by **vegetation biome**, using region masks and shapefiles.
 
-### ✅ Currently implemented:
-- `CDD (Consecutive Dry Days)` – configurable threshold and time aggregation
-- `R10mm`, `R20mm`, `PRCPTOT`, `R95pTOT`, etc.  (see table below)
-- `More temperature-based indices coming soon...`
-
----
-
-
-### 📋 List of relevant Climpact indices used in precipitation trend analysis
-| Short name | Long name                         | Definition                                 | Plain language description                                 | Units   | 
-|------------|------------------------------------|--------------------------------------------|-------------------------------------------------------------|---------|
-| CDD        | Consecutive Dry Days               | Max # of consecutive days with PR < 1 mm   | Longest dry spell                                            | days    | 
-| R10mm      | Heavy rain days                    | Days when PR ≥ 10 mm                       | Days with at least 10 mm rain                               | days    | 
-| R20mm      | Very heavy rain days               | Days when PR ≥ 20 mm                       | Days with at least 20 mm rain                               | days    |
-| PRCPTOT    | Total wet-day PR                   | Sum of daily PR ≥ 1 mm                     | Total rainfall from wet days                                | mm      | 
-| R95pTOT    | Very wet day contribution          | 100 × R95p / PRCPTOT                       | % of rainfall from days above 95th percentile               | %       |
-| R99pTOT    | Extremely wet day contribution     | 100 × R99p / PRCPTOT                       | % of rainfall from days above 99th percentile               | %       |
-| SPI        | Standardised Precipitation Index   | Standardised precipitation deficit measure | Drought severity on 3/6/12-month time scales                | –       | 
-| CWD        | Consecutive Wet Days               | Max # of consecutive days with PR ≥ 1 mm   | Longest wet spell                                            | days    |
-| SDII       | Simple daily intensity index       | Total PR / # wet days (PR ≥ 1 mm)          | Avg. rainfall intensity on wet days                         | mm/day  |
-| R95p       | Total rainfall from very wet days  | Sum of daily PR > 95th percentile          | Total rainfall from very wet days                           | mm      |
-| R99p       | Total rainfall from extreme days   | Sum of daily PR > 99th percentile          | Total rainfall from extremely wet days                      | mm      | 
-| Rx1day     | Max 1-day precipitation            | Max daily PR total                         | Most rainfall on a single day                               | mm      | 
-| Rx5day     | Max 5-day precipitation            | Max 5-day PR total                         | Most rainfall over 5 consecutive days                       | mm      | 
-
----
-
-## 5  Plotting  
-_Last update: **07 Aug 2025**_
-
-The `src/plot_index_by_bioregion.py` module generates time-slice maps (by vegetation biome) from ensemble NetCDFs.
-
-### ▶️ Run plotting
-
-```bash
-python src/run_plot_example.py
-```
-
-Produces:
-- `max_cdd_historical_baseline.png`
-- `max_cdd_scenarios_timeslices.png`
-
-Both stored in the directory specified under `output_dir` in the YAML.
+# TODO
 
 ### 🧾 `plot_config.yml`
 
