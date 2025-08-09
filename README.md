@@ -109,23 +109,10 @@ Each module can be run independently, but they are designed to work together as 
 - **Download verification** – automatically check dataset completeness and flag missing or duplicate NetCDFs, with visual summaries  
 - **Climate indices (modular)** – calculate rainfall and temperature indices from NEX-GDDP-CMIP6 using YAML configs and produce model ensemble means  
 - **Plotting** – generate time-slice maps by bioregion (or municipality) using `plot_config.yml` for colour scales, labels, and overlays  
-- **(Coming soon)** – web-based visualisation and map export tools for interactive exploration
 
 These tools allow you to **mix and match steps** depending on your needs — from quick one-off data checks to full-scale analysis workflows.
 
----
-* **Catalogue explorer** – list models, experiments, runs, variables  
-* **Bulk downloader** – fetch daily precipitation & temperature for a South‑Africa bounding box via YAML parameters  
 
-* **Download verification** – check how many NetCDFs have been downloaded and visualise % completeness
-* **Climate indices (modular)** – calculate indices via YAML configs and model ensemble
-* **plotting** – generate by-bioregion time slice plots using `plot_config.yml`
-* **(Coming soon)** web visualisation & map export tools
-* 
-> **Data source**  
-> NASA Earth Exchange Global Daily Downscaled Projections (NEX‑GDDP‑CMIP6) served via NCCS THREDDS.
-
----
 
 ## Quick‑start
 
