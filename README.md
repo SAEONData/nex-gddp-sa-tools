@@ -96,7 +96,24 @@ These are **guidelines**, not strict rules — adapt them to your style guide or
 | **TN90p**   | % of days with TN > 90th percentile (warm nights)                 | %        | Pos: more warm nights 🟥, Neg: fewer 🟦 | Sequential warm (`YlOrRd`) |
 
 ---
+---
 
+# Core Tools & Workflow
+
+The repository is organised into modular components that take you from **raw climate projections** to **interpretable, ready-to-use outputs**.
+
+Each module can be run independently, but they are designed to work together as a **full processing pipeline**:
+
+- **Catalogue explorer** – list available models, experiments, ensemble members, and variables  
+- **Bulk downloader** – fetch daily precipitation and temperature data for a South Africa bounding box using YAML configuration parameters  
+- **Download verification** – automatically check dataset completeness and flag missing or duplicate NetCDFs, with visual summaries  
+- **Climate indices (modular)** – calculate rainfall and temperature indices from NEX-GDDP-CMIP6 using YAML configs and produce model ensemble means  
+- **Plotting** – generate time-slice maps by bioregion (or municipality) using `plot_config.yml` for colour scales, labels, and overlays  
+- **(Coming soon)** – web-based visualisation and map export tools for interactive exploration
+
+These tools allow you to **mix and match steps** depending on your needs — from quick one-off data checks to full-scale analysis workflows.
+
+---
 * **Catalogue explorer** – list models, experiments, runs, variables  
 * **Bulk downloader** – fetch daily precipitation & temperature for a South‑Africa bounding box via YAML parameters  
 
