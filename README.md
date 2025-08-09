@@ -1,49 +1,67 @@
 # nex-gddp-sa-tools
 Helper scripts for exploring, downloading, and analysing **NASA NEX‑GDDP‑CMIP6** down‑scaled climate projections for the South‑African domain (SAWS + SAEON).
 
-## Climate Indices Reference
+# Climate Indices – Reference & Plotting Guide
 
-This project supports a wide range of **rainfall** and **temperature**-based climate indices.  
-Each entry includes a description, units, and guidance for interpreting **anomaly plots** (difference from a baseline period).  
+This project computes a range of rainfall and temperature indices from NASA NEX-GDDP-CMIP6 downscaled climate data for South Africa.  
+These indices follow **ETCCDI** (Expert Team on Climate Change Detection and Indices) definitions where applicable.  
 
-### Rainfall Indices
+For each index, you can plot **absolute values** (climatology) or **anomalies** (change relative to the baseline period 1995–2014).
 
-| Short Name  | Description                                              | Units    | Anomaly Interpretation & Suggested Colormap |
-| ----------- | -------------------------------------------------------- | -------- | -------------------------------------------- |
-| **CDD**     | Max consecutive dry days (PR < 1 mm/day)                 | days     | ↑ (brown) = longer dry spells; ↓ (blue) = shorter; `cmap: BrBG` |
-| **CWD**     | Max consecutive wet days (PR ≥ 1 mm/day)                 | days     | ↑ (blue) = longer wet spells; ↓ (brown) = shorter; `cmap: BrBG_r` |
-| **R10mm**   | Days with ≥ 10 mm of rainfall                            | days     | ↑ (blue) = more heavy-rain days; ↓ (brown) = fewer; `cmap: BrBG_r` |
-| **R20mm**   | Days with ≥ 20 mm of rainfall                            | days     | Same as R10mm; `cmap: BrBG_r` |
-| **PRCPTOT** | Annual rainfall on wet days (PR ≥ 1 mm/day)              | mm       | ↑ (blue) = wetter; ↓ (brown) = drier; `cmap: BrBG_r` |
-| **R95pTOT** | % of rainfall from very wet days (>95th percentile)      | %        | ↑ (blue) = more dominated by extreme rain; ↓ (brown); `cmap: BrBG_r` |
-| **R99pTOT** | % of rainfall from extremely wet days (>99th percentile) | %        | Similar to R95pTOT; `cmap: BrBG_r` |
-| **R95p**    | Total rainfall from very wet days (>95th percentile)     | mm       | ↑ (blue) = more extreme rain; ↓ (brown); `cmap: BrBG_r` |
-| **R99p**    | Total rainfall from extreme days (>99th percentile)      | mm       | ↑ (blue) = more extreme rain; ↓ (brown); `cmap: BrBG_r` |
-| **SPI**     | Standardised Precipitation Index (3, 6, 12 months)       | unitless | Positive (blue) = wetter; Negative (brown) = drier; `cmap: BrBG` |
-| **SDII**    | Rainfall intensity on wet days                           | mm/day   | ↑ (blue) = heavier average rain per wet day; ↓ (brown); `cmap: BrBG_r` |
-| **Rx1day**  | Wettest day of the year                                  | mm       | ↑ (blue) = heavier extremes; ↓ (brown); `cmap: BrBG_r` |
-| **Rx5day**  | Wettest 5-day period of the year                         | mm       | ↑ (blue) = heavier extremes; ↓ (brown); `cmap: BrBG_r` |
+---
 
-### Temperature Indices
+## How to Read Anomalies
 
-| Short Name  | Description                                                       | Units    | Anomaly Interpretation & Suggested Colormap |
-| ----------- | ----------------------------------------------------------------- | -------- | -------------------------------------------- |
-| **FD**      | Days with minimum temperature below 0°C (frost days)              | days     | ↑ (blue) = more frost; ↓ (red) = fewer; `cmap: RdBu_r` |
-| **TNlt2**   | Days with minimum temperature below 2°C                           | days     | Same as FD; `cmap: RdBu_r` |
-| **TXx**     | Warmest daily maximum temperature                                 | °C       | ↑ (red) = hotter extremes; ↓ (blue) = cooler; `cmap: RdBu` |
-| **TNn**     | Coldest daily minimum temperature                                 | °C       | ↑ (red) = warmer cold nights; ↓ (blue) = colder; `cmap: RdBu_r` |
-| **WSDI**    | Warm spell duration: TX > 90th percentile for ≥ 6 consecutive days| days     | ↑ (red) = more warm spells; ↓ (blue) = fewer; `cmap: RdBu` |
-| **CSDI**    | Cold spell duration: TN < 10th percentile for ≥ 6 consecutive days| days     | ↑ (blue) = more cold spells; ↓ (red) = fewer; `cmap: RdBu_r` |
-| **TXgt50p** | % of days with TX above the 50th percentile                       | %        | ↑ (red) = more warm days; ↓ (blue) = fewer; `cmap: RdBu` |
-| **TXge30**  | Days with TX ≥ 30°C                                               | days     | ↑ (red) = more hot days; ↓ (blue) = fewer; `cmap: RdBu` |
-| **TXdTNd**  | Consecutive days where both TX & TN > 95th percentile             | events   | ↑ (red) = more compound heat events; ↓ (blue) = fewer; `cmap: RdBu` |
-| **TNx**     | Warmest daily minimum temperature (hottest night)                 | °C       | ↑ (red) = hotter nights; ↓ (blue) = cooler nights; `cmap: RdBu` |
-| **TXn**     | Coldest daily maximum temperature (coldest day)                   | °C       | ↑ (red) = warmer cold days; ↓ (blue) = colder cold days; `cmap: RdBu_r` |
-| **TX10p**   | % of days with TX < 10th percentile (cool days)                   | %        | ↑ (blue) = more cool days; ↓ (red) = fewer; `cmap: RdBu_r` |
-| **TX90p**   | % of days with TX > 90th percentile (hot days)                    | %        | ↑ (red) = more hot days; ↓ (blue) = fewer; `cmap: RdBu` |
-| **TN10p**   | % of days with TN < 10th percentile (cold nights)                 | %        | ↑ (blue) = more cold nights; ↓ (red) = fewer; `cmap: RdBu_r` |
-| **TN90p**   | % of days with TN > 90th percentile (warm nights)                 | %        | ↑ (red) = more warm nights; ↓ (blue) = fewer; `cmap: RdBu` |
+- **Positive anomaly** = increase relative to baseline  
+- **Negative anomaly** = decrease relative to baseline  
+- **Colour rules for anomalies**:
+  - **RdBu**: Red = increase, Blue = decrease
+  - **RdBu_r**: Red = *warming signal from a decrease* (e.g., fewer frost days, fewer cold nights)
+- **Colour rules for absolute values**:
+  - **Temperature**: sequential warm (YlOrRd)  
+  - **Rainfall**: sequential cool/wet (YlGnBu)  
 
+---
+
+## Rainfall Indices
+
+| Short Name  | Description                                              | Units    | Anomaly Interpretation | Suggested Colours |
+| ----------- | -------------------------------------------------------- | -------- | ---------------------- | ----------------- |
+| **CDD**     | Max consecutive dry days (PR < 1 mm/day)                 | days     | Red = longer dry spells, Blue = shorter | **RdBu** (anomaly), **YlGnBu** (absolute) |
+| **CWD**     | Max consecutive wet days (PR ≥ 1 mm/day)                  | days     | Red = longer wet spells, Blue = shorter | **RdBu** (anomaly), **YlGnBu** (absolute) |
+| **R10mm**   | Days with ≥ 10 mm rainfall                               | days     | Red = more heavy-rain days, Blue = fewer | **RdBu** (anomaly), **YlGnBu** (absolute) |
+| **R20mm**   | Days with ≥ 20 mm rainfall                               | days     | Same as above | Same as above |
+| **PRCPTOT** | Annual rainfall on wet days (PR ≥ 1 mm/day)              | mm       | Red = wetter years, Blue = drier years | **RdBu** (anomaly), **YlGnBu** (absolute) |
+| **R95pTOT** | % of rainfall from very wet days (>95th percentile)      | %        | Red = bigger share from very wet days | **RdBu** (anomaly), **YlGnBu** (absolute) |
+| **R99pTOT** | % of rainfall from extremely wet days (>99th percentile) | %        | Same as above | Same as above |
+| **R95p**    | Total rainfall from very wet days (>95th percentile)     | mm       | Red = more rain from very wet days | **RdBu** (anomaly), **YlGnBu** (absolute) |
+| **R99p**    | Total rainfall from extreme days (>99th percentile)      | mm       | Same as above | Same as above |
+| **SPI**     | Standardised Precipitation Index (3, 6, 12 months)       | unitless | >0 wet, <0 dry; Red = wetter, Blue = drier | **RdBu** |
+| **SDII**    | Rainfall intensity on wet days                           | mm/day   | Red = more intense wet days | **RdBu** (anomaly), **YlGnBu** (absolute) |
+| **Rx1day**  | Wettest day of the year                                  | mm       | Red = wetter extremes, Blue = less intense | **RdBu** (anomaly), **YlGnBu** (absolute) |
+| **Rx5day**  | Wettest 5-day period of the year                         | mm       | Same as above | Same as above |
+
+---
+
+## Temperature Indices
+
+| Short Name  | Description                                                       | Units    | Anomaly Interpretation | Suggested Colours |
+| ----------- | ----------------------------------------------------------------- | -------- | ---------------------- | ----------------- |
+| **FD**      | Days with min temp < 0°C (frost days)                             | days     | Warming reduces FD → negative anomaly; use red for fewer frost days | **RdBu_r** (anomaly), **YlGnBu** (absolute) |
+| **TNlt2**   | Days with min temp < 2°C                                          | days     | Same as above | Same as above |
+| **TXx**     | Warmest daily max temperature                                     | °C       | Red = hotter extremes | **RdBu** (anomaly), **YlOrRd** (absolute) |
+| **TNn**     | Coldest daily min temperature                                     | °C       | Red = warmer coldest nights | **RdBu** (anomaly), **YlGnBu** (absolute) |
+| **WSDI**    | Warm spell duration: TX > 90th percentile for ≥6 days             | days     | Red = more warm-spell days | **RdBu** (anomaly), **YlOrRd** (absolute) |
+| **CSDI**    | Cold spell duration: TN < 10th percentile for ≥6 days             | days     | Warming reduces CSDI → negative anomaly; use red for fewer cold spells | **RdBu_r** (anomaly), **YlGnBu** (absolute) |
+| **TXgt50p** | % of days with TX > 50th percentile                               | %        | Red = more warm days | **RdBu** (anomaly), **YlOrRd** (absolute) |
+| **TXge30**  | Days with TX ≥ 30°C                                               | days     | Red = more hot days | **RdBu** (anomaly), **YlOrRd** (absolute) |
+| **TXdTNd**  | Consecutive days with both TX & TN > 95th percentile              | events   | Red = more heatwave events | **RdBu** (anomaly), **YlOrRd** (absolute) |
+| **TNx**     | Warmest daily minimum temperature (hottest night)                 | °C       | Red = warmer nights | **RdBu** (anomaly), **YlOrRd** (absolute) |
+| **TXn**     | Coldest daily maximum temperature (coldest day)                   | °C       | Red = warmer coldest days | **RdBu** (anomaly), **YlGnBu** (absolute) |
+| **TX10p**   | % of days with TX < 10th percentile (cool days)                   | %        | Warming reduces TX10p → negative anomaly; red for fewer cool days | **RdBu_r** (anomaly), **YlGnBu** (absolute) |
+| **TX90p**   | % of days with TX > 90th percentile (hot days)                    | %        | Red = more hot days | **RdBu** (anomaly), **YlOrRd** (absolute) |
+| **TN10p**   | % of days with TN < 10th percentile (cold nights)                 | %        | Warming reduces TN10p → negative anomaly; red for fewer cold nights | **RdBu_r** (anomaly), **YlGnBu** (absolute) |
+| **TN90p**   | % of days with TN > 90th percentile (warm nights)                 | %        | Red = more warm nights | **RdBu** (anomaly), **YlOrRd** (absolute) |
 
 
 
