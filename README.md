@@ -15,7 +15,7 @@ For each index, you can plot **absolute values** (climatology) or **anomalies** 
 
 - **Positive anomaly** = increase relative to baseline  
 - **Negative anomaly** = decrease relative to baseline  
-- Some indices are “beneficial” when lower (e.g., fewer frost days) — so a **negative anomaly** can still indicate warming.  
+- Some indices are “counterintuitive” when lower (e.g., fewer frost days) — so a **negative anomaly** can still indicate warming.  
 - Always check the “Anomaly Interpretation” notes to understand what each sign means in context.
 
 ---
