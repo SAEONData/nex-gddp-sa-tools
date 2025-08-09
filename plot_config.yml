@@ -96,7 +96,7 @@ indices:
 #   cmap: YlGnBu
 #   legend_label: "R95p (mm per period)"
 #   anomaly: false
-
+#
 # - name: r99p
 #   variable: r99p_anomaly
 #   data_dir: "data/outputs/r99p"
@@ -166,22 +166,144 @@ indices:
 #   # vmin: 20
 #   # vmax: 200
 #   
-
-- name: rx5day
-  variable: rx5day_anomaly
-  data_dir: "data/outputs/rx5day"
-  cmap: RdBu
-  legend_label: "Rx5day Anomaly (Δ mm vs 1995–2014)"
-  anomaly: true
-  # vmin: -100   # optional fixed scale suggestion
-  # vmax:  100
+#
+#- name: rx5day
+# variable: rx5day_anomaly
+# data_dir: "data/outputs/rx5day"
+# cmap: RdBu
+# legend_label: "Rx5day Anomaly (Δ mm vs 1995–2014)"
+# anomaly: true
+# # vmin: -100   # optional fixed scale suggestion
+# # vmax:  100
+# 
+#
+#- name: rx5day
+# variable: rx5day
+# data_dir: "data/outputs/rx5day"
+# cmap: YlGnBu
+# legend_label: "Rx5day (Wettest 5-day Total, mm)"
+# anomaly: false
+# # vmin: 50     # tune after first pass
+# # vmax: 300
+#
+## Anomaly (recommended)
+#- name: fd
+# variable: fd_anomaly
+# data_dir: "data/outputs/fd"
+# cmap: RdBu
+# legend_label: "FD Anomaly (Δ days vs 1995–2014)"
+# anomaly: true
+# # vmin: -20
+# # vmax:  20
+# 
+## Absolute frost days
+#- name: fd
+# variable: fd
+# data_dir: "data/outputs/fd"
+# cmap: YlGnBu
+# legend_label: "Frost Days per Year (days)"
+# anomaly: false
+# # vmin: 0
+# # vmax: 60
+# 
+## Anomaly
+#- name: tnlt2
+# variable: tnlt2_anomaly
+# data_dir: "data/outputs/tnlt2"
+# cmap: RdBu
+# legend_label: "TNlt2 Anomaly (Δ days vs 1995–2014)"
+# anomaly: true
+# # vmin: -20
+# # vmax:  20
+# 
+## Absolute
+#- name: tnlt2
+# variable: tnlt2
+# data_dir: "data/outputs/tnlt2"
+# cmap: YlGnBu
+# legend_label: "Days with Min Temp < 2°C (days)"
+# anomaly: false
+# # vmin: 0
+# # vmax: 90
+# 
+## Anomaly (recommended)
+#- name: txx
+# variable: txx_anomaly
+# data_dir: "data/outputs/txx"
+# cmap: RdBu_r                # red = hotter, blue = cooler
+# legend_label: "TXx Anomaly (Δ °C vs 1995–2014)"
+# anomaly: true
+# # vmin: 0      # if you want only increases
+# # vmax: 6
+#
+## Absolute
+#- name: txx
+# variable: txx
+# data_dir: "data/outputs/txx"
+# cmap: YlOrRd               # sequential warm
+# legend_label: "TXx (Warmest Daily Tmax, °C)"
+# anomaly: false
+# # vmin: 25
+# # vmax: 50
+# 
+# # Anomaly (recommended)
+#- name: tnn
+# variable: tnn_anomaly
+# data_dir: "data/outputs/tnn"
+# cmap: RdBu_r                 # red = warmer, blue = colder
+# legend_label: "TNn Anomaly (Δ °C vs 1995–2014)"
+# anomaly: true
+# # vmin: -6
+# # vmax:  6
+# 
+### Absolute
+##- name: tnn
+## variable: tnn
+## data_dir: "data/outputs/tnn"
+## cmap: YlGnBu                 # cool sequential
+## legend_label: "TNn (Coldest Daily Tmin, °C)"
+## anomaly: false
+## # vmin: -10
+## # vmax:  10
+#
+## Anomaly 
+#- name: wsdi
+# variable: wsdi_anomaly
+# data_dir: "data/outputs/wsdi"
+# cmap: RdBu_r              # red = increase, blue = decrease
+# legend_label: "WSDI Anomaly (Δ days vs 1995–2014)"
+# anomaly: true
+# # vmin: -5
+# # vmax:  20
+# 
+## Absolute (recommended)
+#- name: wsdi
+# variable: wsdi
+# data_dir: "data/outputs/wsdi"
+# cmap: YlOrRd
+# legend_label: "WSDI (days per year)"
+# anomaly: false
+# # vmin: 0
+# # vmax: 40
+#
+#- name: csdi
+# variable: csdi_anomaly
+# data_dir: "data/outputs/csdi"
+# cmap: RdBu
+# legend_label: "CSDI Anomaly (Δ days vs 1995–2014)"
+# anomaly: true
+# 
   
-
-- name: rx5day
-  variable: rx5day
-  data_dir: "data/outputs/rx5day"
-  cmap: YlGnBu
-  legend_label: "Rx5day (Wettest 5-day Total, mm)"
+- name: txgt50p
+  variable: txgt50p_anomaly
+  data_dir: "data/outputs/txgt50p"
+  cmap: RdBu_r
+  legend_label: "TXgt50p Anomaly (Δ percentage points vs 1995–2014)"
+  anomaly: true
+  
+- name: txgt50p
+  variable: txgt50p
+  data_dir: "data/outputs/txgt50p"
+  cmap: YlOrRd
+  legend_label: "TXgt50p (% of days)"
   anomaly: false
-  # vmin: 50     # tune after first pass
-  # vmax: 300

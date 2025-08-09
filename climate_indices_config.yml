@@ -27,13 +27,16 @@ run_indices:
 # - spi
 # - sdii
 # - rx1day
-  - rx5day
+# - rx5day
   
-# - tnn   
-# - wsdi
 # - fd
+# - tnlt2
 # - txx
-
+# - tnn
+# - wsdi
+# - csdi
+  - txgt50p   
+  
 region:
   # Spatial bounding box for subsetting climate model data
   lat_min: -35.0
@@ -104,3 +107,39 @@ rx1day:
   
 rx5day:
   aggregation: annual   # options: annual | seasonal | monthly  (maps to YS | QS-DEC | MS)
+  
+fd:
+  threshold_celsius: 0.0
+  variable: tasmin
+  aggregation: annual    # or 'seasonal' | 'monthly'
+  
+tnlt2:
+  threshold_celsius: 2.0
+  variable: tasmin
+  aggregation: annual    # or 'seasonal' | 'monthly'
+  
+txx:
+  variable: tasmax
+  aggregation: annual    # or 'seasonal' | 'monthly'
+  
+tnn:
+  variable: tasmin
+  aggregation: annual
+  
+wsdi:
+  min_spell_length: 6
+  reference_start: "1995-01-01"
+  reference_end:   "2014-12-31"
+  variable: tasmax
+  aggregation: annual   # (logic counts per-year spell days, then averages within slice)
+  
+csdi:
+  variable: tasmin
+  min_spell_length: 6
+  reference_start: "1995-01-01"
+  reference_end:   "2014-12-31"
+  
+txgt50p:
+  variable: tasmax
+  reference_start: "1995-01-01"
+  reference_end:   "2014-12-31"

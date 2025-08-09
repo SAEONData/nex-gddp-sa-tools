@@ -2,115 +2,160 @@
 """
 fd_compute.py
 ---------------------------------------------------------------
-Compute FD (Frost Days) using xclim.indices.frost_days.
-FD is the number of days per year with tasmin < 0°C.
+Compute FD (Frost Days): number of days with tasmin < 0°C,
+for each experiment and configured time slice, then save the
+multi-model ensemble mean.
+
+Outputs:
+  data/outputs/fd/fd_ensemble_mean_<experiment>_<slice>.nc
+
+Notes
+- Expects daily minimum temperature variable "tasmin".
+- Converts to °C before thresholding.
+- Aggregation freq: annual (default 'YS'), seasonal ('QS-DEC'), monthly ('MS').
 """
 
 from pathlib import Path
-import glob
-import time
-import warnings
-import numpy as np
-import xarray as xr
+import glob, time, warnings
+from collections import defaultdict
+
 import dask
 from dask.diagnostics import ProgressBar
-from xclim.indices import frost_days  # ✅ Direct import
+import numpy as np
+import xarray as xr
+from xclim.core.units import convert_units_to
 
-warnings.filterwarnings("ignore")
+warnings.filterwarnings("ignore", message=".*already exists and will be overwritten.")
 
+# ----------------- helpers -----------------
+def _label_slug(s: str) -> str:
+    return (
+        s.lower()
+         .replace(" ", "_")
+         .replace("(", "").replace(")", "")
+         .replace("–", "-")
+    )
+
+def _select_bbox(ds: xr.Dataset, lat_bounds, lon_bounds) -> xr.Dataset:
+    """Subset robustly regardless of ascending/descending coords."""
+    if "lat" not in ds.coords or "lon" not in ds.coords:
+        raise ValueError("Dataset is missing 'lat' and/or 'lon'.")
+    lat = ds["lat"]; lon = ds["lon"]
+    lat_asc = bool(lat[0] < lat[-1])
+    lon_asc = bool(lon[0] < lon[-1])
+    lat_slice = slice(lat_bounds[0], lat_bounds[1]) if lat_asc else slice(lat_bounds[1], lat_bounds[0])
+    lon_slice = slice(lon_bounds[0], lon_bounds[1]) if lon_asc else slice(lon_bounds[1], lon_bounds[0])
+    return ds.sel(lat=lat_slice, lon=lon_slice)
+
+# ----------------- main -----------------
 def run(cfg):
-    start_time = time.time()
-    print("🚀 Starting FD (Frost Days) processing...\n")
+    t0 = time.time()
+    print("🧮 Starting FD (Frost Days) processing…")
 
-    # ─── Config ───
+    # Config
     lat_bounds = [cfg["region"]["lat_min"], cfg["region"]["lat_max"]]
     lon_bounds = [cfg["region"]["lon_min"], cfg["region"]["lon_max"]]
-    rcfg = cfg["fd"]
-    aggr_label = rcfg.get("aggregation", "annual")
-    aggr_code = rcfg.get("aggregation_code", "YS")
+
+    fd_cfg = cfg.get("fd", {})
+    thresh_c = float(fd_cfg.get("threshold_celsius", 0.0))  # < 0°C by default
+    varname  = fd_cfg.get("variable", "tasmin")
+    aggr     = fd_cfg.get("aggregation", "annual")  # 'annual'|'seasonal'|'monthly'
+    aggr_map = {"monthly": "MS", "seasonal": "QS-DEC", "annual": "YS"}
+    freq_code = aggr_map.get(aggr, "YS")
 
     time_slices = cfg.get("time_slices", {})
-    ROOT = Path(__file__).resolve().parents[2]
-    DATA_DIR = ROOT / "data" / "tasmin"
-    OUTPUT_DIR = ROOT / "data" / "outputs" / "fd"
-
     experiments = cfg.get("experiments", {}).get("select", ["historical"])
 
+    # Paths
+    ROOT       = Path(__file__).resolve().parents[2]
+    DATA_DIR   = ROOT / "data" / varname
+    OUTPUT_DIR = ROOT / "data" / "outputs" / "fd"
+    OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
+
+    model_file_counts = defaultdict(int)
+
     for experiment in experiments:
-        print(f"\n▶ Running experiment: {experiment}")
-
-        if experiment == "historical":
-            slice_names = ["Baseline (1995–2014)"]
-        else:
-            slice_names = [name for name in time_slices if not name.startswith("Baseline")]
-
+        print(f"\n📁 Experiment: {experiment}")
         nc_files = sorted(Path(p).resolve() for p in glob.glob(str(DATA_DIR / f"**/{experiment}/*.nc"), recursive=True))
         print(f"   Found {len(nc_files)} NetCDF files.")
-
         if not nc_files:
-            print(f"⚠️  No files found for {experiment}. Skipping.\n")
             continue
+
+        slice_names = ["Baseline (1995–2014)"] if experiment == "historical" else \
+                      [n for n in time_slices if not n.startswith("Baseline")]
 
         for slice_name in slice_names:
             start, end = time_slices.get(slice_name, [None, None])
-            print(f" → Time slice: {slice_name} ({start} to {end})")
+            print(f"\n→ Time slice: {slice_name}  ({start} to {end})")
 
             model_data, model_names = [], []
 
             for i, nc_file in enumerate(nc_files, 1):
-                print(f"   [{i}/{len(nc_files)}] Processing: {nc_file.name}")
+                print(f"   [{i}/{len(nc_files)}] {nc_file.name}")
                 try:
                     ds = xr.open_dataset(nc_file, chunks={"time": -1})
-                    ds = ds.convert_calendar("standard", use_cftime=True)
-                    ds = ds.sel(lat=slice(*lat_bounds), lon=slice(*lon_bounds))
-                    tasmin = ds["tasmin"].sel(time=slice(start, end)) - 273.15
-                    tasmin.attrs["units"] = "degC"
+                    ds = _select_bbox(ds, lat_bounds, lon_bounds)
+                    ds = ds.sel(time=slice(start, end))
 
-                    fd_result = frost_days(tasmin, freq=aggr_code).compute()
-                    fd_mean = fd_result.mean(dim="time")
+                    if varname not in ds:
+                        print(f"     ⚠️ Missing variable '{varname}'; skipping.")
+                        continue
 
-                    if fd_mean.isnull().all():
-                        raise ValueError("All FD values are NaN.")
+                    # Convert to °C
+                    tasmin_c = convert_units_to(ds[varname], "degC")
 
-                    idx = nc_file.parts.index(experiment)
-                    model_name = nc_file.parts[idx - 1]
+                    # Boolean mask for frost days (< threshold), sum over periods
+                    frost = tasmin_c < thresh_c
+                    fd_per = frost.resample(time=freq_code).sum(dim="time")  # days per period
+
+                    if fd_per.size == 0 or fd_per.isnull().all():
+                        print("     ⚠️ Empty/NaN FD; skipping.")
+                        continue
+
+                    # Average across periods within the slice
+                    fd_mean = fd_per.mean(dim="time")
+
+                    # Model name
+                    try:
+                        idx = nc_file.parts.index(experiment)
+                        model = nc_file.parts[idx - 1]
+                    except ValueError:
+                        model = ds.attrs.get("source_id") or ds.attrs.get("model_id") or nc_file.stem.split("_")[2]
+
                     model_data.append(fd_mean)
-                    model_names.append(model_name)
+                    model_names.append(model)
+                    model_file_counts[model] += 1
 
                 except Exception as e:
-                    print(f"⚠️ Error processing {nc_file.name}: {e}")
+                    print(f"     ⚠️ Error processing {nc_file.name}: {e}")
 
             if not model_data:
-                print(f"❌ No valid outputs for {experiment} / {slice_name}. Skipping.")
+                print(f"   ❌ No valid outputs for {experiment} / {slice_name}.")
                 continue
 
-            print(f"\n   → Computing ensemble mean for {experiment} / {slice_name}...")
+            print("   → Computing ensemble mean…")
             with ProgressBar():
-                computed_data = dask.compute(*model_data)
-                stack = xr.concat(computed_data, dim="model")
-                stack["model"] = model_names
-                ensemble_mean = stack.mean(dim="model")
+                computed = dask.compute(*model_data)
+            stack = xr.concat(computed, dim="model").assign_coords(model=("model", model_names))
+            ensemble_mean = stack.mean(dim="model")
 
-                # Mask areas where all models report 0 frost days
-                zero_mask = (stack == 0).all(dim="model")
-                ensemble_mean = ensemble_mean.where(~zero_mask)
+            out_da = ensemble_mean.assign_attrs({
+                "units": "days",
+                "long_name": f"Frost Days (tasmin < {thresh_c} °C)",
+                "aggregation": aggr,
+                "aggregation_code": freq_code,
+                "threshold": f"{thresh_c} °C",
+                "models_included": ", ".join(sorted(set(model_names))),
+                "created_by": "fd_compute.py",
+            })
 
-            label = slice_name.lower().replace(" ", "_").replace("(", "").replace(")", "").replace("–", "-")
+            label = _label_slug(slice_name)
             out_nc = OUTPUT_DIR / f"fd_ensemble_mean_{experiment}_{label}.nc"
-            out_nc.parent.mkdir(parents=True, exist_ok=True)
+            xr.Dataset({"fd": out_da}).to_netcdf(out_nc)
+            print(f"   ✅ Saved → {out_nc.name}")
 
-            ds_out = xr.Dataset(
-                {"fd": ensemble_mean},
-                attrs={
-                    "title": f"Ensemble Mean of Frost Days (FD) - {experiment} - {slice_name}",
-                    "description": f"Number of days per year with tasmin < 0°C. Aggregation: {aggr_label}, Slice: {slice_name}",
-                    "units": "days",
-                    "models_included": ", ".join(sorted(set(model_names))),
-                    "created_by": "fd_compute.py (xclim.indices.frost_days)",
-                }
-            )
+    print("\n📊 Files per model (any slice):")
+    for m in sorted(model_file_counts):
+        print(f"   {m:30} {model_file_counts[m]:>4d}")
 
-            ds_out.to_netcdf(out_nc)
-            print(f"   ✅ Saved NetCDF → {out_nc}")
-
-    print(f"\n✅ All FD computations completed in {round(time.time() - start_time, 1)} seconds.")
+    print(f"\n⏱️ Completed in {round(time.time() - t0, 1)} s.")

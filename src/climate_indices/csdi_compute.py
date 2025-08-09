@@ -1,17 +1,17 @@
 #!/usr/bin/env python3
 """
-wsdi_compute.py
+csdi_compute.py
 ---------------------------------------------------------------
-WSDI (Warm Spell Duration Index):
+CSDI (Cold Spell Duration Index):
 Days belonging to spells of >= min_spell_length consecutive days
-with tasmax > the MODEL-SPECIFIC TX90p (90th pct by calendar day),
-where TX90p is computed from that model's historical baseline
+with tasmin < the MODEL-SPECIFIC TN10p (10th pct by calendar day),
+where TN10p is computed from that model's historical baseline
 (1995–2014 by default) and cached to disk.
 
 Outputs
-  data/outputs/wsdi/wsdi_ensemble_mean_<experiment>_<slice>.nc
+  data/outputs/csdi/csdi_ensemble_mean_<experiment>_<slice>.nc
 Caches
-  data/outputs/wsdi/_thresholds/<MODEL>_tx90p_1995-2014.nc
+  data/outputs/csdi/_thresholds/<MODEL>_tn10p_1995-2014.nc
 """
 
 from __future__ import annotations
@@ -23,12 +23,10 @@ import numpy as np
 import xarray as xr
 from xclim.core.units import convert_units_to
 
-# ─────────────────────────────────────────────────────────────
-# Runtime config to avoid warnings/crashes and keep memory low
-# ─────────────────────────────────────────────────────────────
+# ── runtime settings to avoid crashes/warnings and keep memory tame ──
 warnings.filterwarnings("ignore")
-os.environ.setdefault("HDF5_USE_FILE_LOCKING", "FALSE")  # reduce file lock contention
-os.environ.setdefault("XR_USE_FLOX", "0")                # force blockwise groupby engine
+os.environ.setdefault("HDF5_USE_FILE_LOCKING", "FALSE")  # reduce HDF5 lock issues
+os.environ.setdefault("XR_USE_FLOX", "0")                # use blockwise for groupby-quantile
 
 try:
     import dask
@@ -39,10 +37,7 @@ except Exception:
 # ───────────────────────── helpers ───────────────────────── #
 
 def _label_slug(s: str) -> str:
-    return (s.lower()
-              .replace(" ", "_")
-              .replace("(", "").replace(")", "")
-              .replace("–", "-"))
+    return (s.lower().replace(" ", "_").replace("(", "").replace(")", "").replace("–", "-"))
 
 def _select_bbox(ds: xr.Dataset, lat_bounds, lon_bounds) -> xr.Dataset:
     if "lat" not in ds.coords or "lon" not in ds.coords:
@@ -54,11 +49,9 @@ def _select_bbox(ds: xr.Dataset, lat_bounds, lon_bounds) -> xr.Dataset:
     return ds.sel(lat=lat_slice, lon=lon_slice)
 
 def _engine_open_kwargs():
-    # Prefer h5netcdf to avoid NetCDF4/HDF segfaults; fall back gracefully.
     return dict(engine="h5netcdf", use_cftime=True, lock=False)
 
 def _is_healthy_file(p: Path) -> bool:
-    """Quickly probe a NetCDF to avoid HDF crashes in open_mfdataset."""
     try:
         ds = xr.open_dataset(str(p), chunks={}, **_engine_open_kwargs())
         ds.close()
@@ -67,7 +60,6 @@ def _is_healthy_file(p: Path) -> bool:
         return False
 
 def _open_mf(paths: List[Path]) -> xr.Dataset:
-    """Open many files robustly with cftime-compatible time axis."""
     paths = [p for p in paths if _is_healthy_file(p)]
     if not paths:
         raise IOError("No healthy files remain after screening.")
@@ -76,11 +68,10 @@ def _open_mf(paths: List[Path]) -> xr.Dataset:
             [str(p) for p in paths],
             combine="by_coords",
             parallel=True,
-            chunks={"time": -1},  # single chunk along time (good for quantile/groupby later)
+            chunks={"time": -1},  # one time chunk -> blockwise quantile ok
             **_engine_open_kwargs(),
         )
     except Exception:
-        # Fallback to default engine if h5netcdf unavailable
         return xr.open_mfdataset(
             [str(p) for p in paths],
             combine="by_coords",
@@ -96,16 +87,13 @@ def _year_from_name(p: Path) -> Optional[int]:
     return int(m.group()) if m else None
 
 def _files_for_model_exp(data_dir: Path, model: str, experiment: str) -> List[Path]:
-    # 1) .../<model>/<experiment>/*.nc
     hits = sorted(data_dir.glob(f"**/{model}/{experiment}/*.nc"))
     if hits:
         return hits
-    # 2) any file under experiment path containing model token
     hits = [p for p in data_dir.glob(f"**/{experiment}/*.nc") if model in str(p)]
     return sorted(hits)
 
 def _find_model_name(p: Path, experiment: str) -> str:
-    # Prefer folder just before experiment
     try:
         idx = p.parts.index(experiment)
         if idx > 0:
@@ -119,7 +107,6 @@ def _models_in_files(files: List[Path], experiment: str) -> List[str]:
     return sorted({ _find_model_name(p, experiment) for p in files })
 
 def _slice_time_cf(ds: xr.Dataset, start: str, end: str) -> xr.Dataset:
-    """Slice using the dataset's own calendar class for bounds."""
     if "time" not in ds or ds.sizes.get("time", 0) == 0:
         return ds
     t0 = ds["time"].values[0]
@@ -128,7 +115,7 @@ def _slice_time_cf(ds: xr.Dataset, start: str, end: str) -> xr.Dataset:
     else:
         cls = type(t0)
         y0, m0, d0 = (int(start[:4]), int(start[5:7]), int(start[8:10]))
-        y1, m1, d1 = (int(end[:4]),   int(end[5:7]),   int(end[8:10]))
+        y1, m1, d1 = (int(end[:4]), int(end[5:7]), int(end[8:10]))
         try:
             s = cls(y0, m0, d0); e = cls(y1, m1, d1)
         except TypeError:
@@ -142,30 +129,28 @@ def _slice_time_cf(ds: xr.Dataset, start: str, end: str) -> xr.Dataset:
         return ds.isel(time=slice(0, 0))
     return ds.sel(time=slice(s, e))
 
-def _calendar90p_threshold(tas_hist_c: xr.DataArray) -> xr.DataArray:
-    """90th percentile by calendar day on baseline (cftime-safe)."""
-    # Ensure groupby-quantile runs blockwise: single time chunk; coarsen lat/lon chunks to reduce tasks.
+def _calendar10p_threshold(tas_hist_c: xr.DataArray) -> xr.DataArray:
+    """TN10p (10th percentile by calendar day) on baseline (cftime-safe)."""
     tas_hist_c = tas_hist_c.chunk({"time": -1, "lat": 80, "lon": 80})
     doy = tas_hist_c["time"].dt.dayofyear
     thr = (
         tas_hist_c
         .assign_coords(dayofyear=doy)
         .groupby("dayofyear")
-        .quantile(0.9, dim="time", skipna=True)
+        .quantile(0.1, dim="time", skipna=True)
     )
-    thr.name = "tx90p"
+    thr.name = "tn10p"
     thr.attrs.update({"units": "degC"})
     return thr
 
 def _ensure_thr_has_day(thr_doy: xr.DataArray, max_doy: int) -> xr.DataArray:
-    """If scenario has day 366 and thr lacks it, copy day 365."""
     have = set(int(v) for v in np.atleast_1d(thr_doy["dayofyear"].values))
     if max_doy == 366 and 366 not in have:
         thr366 = thr_doy.sel(dayofyear=365)
         thr_doy = xr.concat([thr_doy, thr366.assign_coords(dayofyear=366)], dim="dayofyear").sortby("dayofyear")
     return thr_doy
 
-def _wsdi_days_in_runs_1d(x: np.ndarray, runlen: int) -> np.ndarray:
+def _csdi_days_in_runs_1d(x: np.ndarray, runlen: int) -> np.ndarray:
     """Count True days that belong to runs >= runlen in 1D array."""
     if x.size == 0:
         return np.array(0, dtype=np.int32)
@@ -180,9 +165,9 @@ def _wsdi_days_in_runs_1d(x: np.ndarray, runlen: int) -> np.ndarray:
             total += L
     return np.array(total, dtype=np.int32)
 
-def _wsdi_days_per_year(bool_da: xr.DataArray, runlen: int) -> xr.DataArray:
+def _csdi_days_per_year(bool_da: xr.DataArray, runlen: int) -> xr.DataArray:
     return xr.apply_ufunc(
-        _wsdi_days_in_runs_1d,
+        _csdi_days_in_runs_1d,
         bool_da,
         kwargs={"runlen": runlen},
         input_core_dims=[["time"]],
@@ -196,17 +181,17 @@ def _wsdi_days_per_year(bool_da: xr.DataArray, runlen: int) -> xr.DataArray:
 
 def run(cfg):
     t0 = time.time()
-    print("🧮 Starting WSDI (per-model cached thresholds, streaming ensemble)…")
+    print("🧮 Starting CSDI (per-model cached thresholds, streaming ensemble)…")
 
     # Config
     lat_bounds = [cfg["region"]["lat_min"], cfg["region"]["lat_max"]]
     lon_bounds = [cfg["region"]["lon_min"], cfg["region"]["lon_max"]]
 
-    wsdi_cfg  = cfg.get("wsdi", {})
-    varname   = wsdi_cfg.get("variable", "tasmax")
-    runlen    = int(wsdi_cfg.get("min_spell_length", 6))
-    ref_start = wsdi_cfg.get("reference_start", "1995-01-01")
-    ref_end   = wsdi_cfg.get("reference_end",   "2014-12-31")
+    csdi_cfg  = cfg.get("csdi", {})
+    varname   = csdi_cfg.get("variable", "tasmin")           # TN
+    runlen    = int(csdi_cfg.get("min_spell_length", 6))
+    ref_start = csdi_cfg.get("reference_start", "1995-01-01")
+    ref_end   = csdi_cfg.get("reference_end",   "2014-12-31")
 
     time_slices: Dict[str, Tuple[str, str]] = cfg.get("time_slices", {})
     experiments: List[str] = cfg.get("experiments", {}).get("select", ["historical"])
@@ -214,7 +199,7 @@ def run(cfg):
     # Paths
     ROOT       = Path(__file__).resolve().parents[2]
     DATA_DIR   = ROOT / "data" / varname
-    OUTPUT_DIR = ROOT / "data" / "outputs" / "wsdi"
+    OUTPUT_DIR = ROOT / "data" / "outputs" / "csdi"
     THR_DIR    = OUTPUT_DIR / "_thresholds"
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
     THR_DIR.mkdir(parents=True, exist_ok=True)
@@ -225,18 +210,18 @@ def run(cfg):
         for exp in experiments
     }
 
-    # ---------- 1) Build/cache TX90p per model from historical ----------
+    # ---------- 1) Build/cache TN10p per model from historical ----------
     hist_files = exp_files.get("historical", [])
     hist_models = _models_in_files(hist_files, "historical")
-    print(f"\n📦 Caching TX90p (baseline {ref_start}–{ref_end}) for {len(hist_models)} models…")
+    print(f"\n📦 Caching TN10p (baseline {ref_start}–{ref_end}) for {len(hist_models)} models…")
 
     for model in hist_models:
-        cache_path = THR_DIR / f"{model}_tx90p_{ref_start[:4]}-{ref_end[:4]}.nc"
+        cache_path = THR_DIR / f"{model}_tn10p_{ref_start[:4]}-{ref_end[:4]}.nc"
         if cache_path.exists():
             continue
         try:
             mfiles = _files_for_model_exp(DATA_DIR, model, "historical")
-            # Prefilter to speed up IO; still sliced precisely after open
+            # Prefilter to speed IO; still slice later
             mfiles = [p for p in mfiles if (y := _year_from_name(p)) and (1980 <= y <= 2014)] or mfiles
             if not mfiles:
                 continue
@@ -248,17 +233,16 @@ def run(cfg):
                 dsh.close()
                 continue
 
-            tas_hist_c = convert_units_to(dsh[varname], "degC")
-            thr_doy = _calendar90p_threshold(tas_hist_c).astype("float32")
+            tn_hist_c = convert_units_to(dsh[varname], "degC")
+            thr_doy = _calendar10p_threshold(tn_hist_c).astype("float32")
 
-            xr.Dataset({"tx90p": thr_doy}).to_netcdf(cache_path, engine="h5netcdf")
+            xr.Dataset({"tn10p": thr_doy}).to_netcdf(cache_path, engine="h5netcdf")
             dsh.close()
             print(f"   ✓ cached {model}")
         except Exception as e:
             print(f"   ⚠️ {model}: {e}")
 
-    # Map model -> cached threshold path
-    thr_cache = {p.name.split("_tx90p_")[0]: p for p in THR_DIR.glob("*_tx90p_*.nc")}
+    thr_cache = {p.name.split("_tn10p_")[0]: p for p in THR_DIR.glob("*_tn10p_*.nc")}
 
     # ---------- 2) Per experiment & time-slice, streaming ensemble ----------
     for experiment, files in exp_files.items():
@@ -283,7 +267,6 @@ def run(cfg):
 
             for model in models:
                 try:
-                    # Scenario files for this slice (filter by filename year)
                     scen_files = _files_for_model_exp(DATA_DIR, model, experiment)
                     scen_files = [p for p in scen_files if (y := _year_from_name(p)) and (sY <= y <= eY)]
                     if not scen_files:
@@ -296,52 +279,53 @@ def run(cfg):
                         ds.close()
                         continue
 
-                    tas_scen_c = convert_units_to(ds[varname], "degC")
+                    tn_scen_c = convert_units_to(ds[varname], "degC")
 
-                    # Load cached threshold for this model
                     cache_path = thr_cache.get(model)
                     if cache_path is None:
                         ds.close()
                         continue
                     thr_ds = xr.open_dataset(cache_path, engine="h5netcdf")
-                    tx90p = thr_ds["tx90p"]
+                    tn10p = thr_ds["tn10p"]
 
-                    # Align threshold grid to scenario grid if needed (lat/lon only)
-                    if ("lat" in tx90p.coords and "lat" in tas_scen_c.coords
-                        and ("lon" in tx90p.coords and "lon" in tas_scen_c.coords)):
-                        if (tx90p.sizes.get("lat") != tas_scen_c.sizes.get("lat")
-                            or tx90p.sizes.get("lon") != tas_scen_c.sizes.get("lon")):
-                            tx90p = tx90p.reindex(lat=tas_scen_c["lat"], lon=tas_scen_c["lon"], method=None)
+                    # Align threshold grid if needed
+                    if ("lat" in tn10p.coords and "lat" in tn_scen_c.coords
+                        and ("lon" in tn10p.coords and "lon" in tn_scen_c.coords)):
+                        if (tn10p.sizes.get("lat") != tn_scen_c.sizes.get("lat")
+                            or tn10p.sizes.get("lon") != tn_scen_c.sizes.get("lon")):
+                            tn10p = tn10p.reindex(lat=tn_scen_c["lat"], lon=tn_scen_c["lon"], method=None)
 
-                    scen_doy = tas_scen_c["time"].dt.dayofyear
+                    scen_doy = tn_scen_c["time"].dt.dayofyear
                     max_doy = int(scen_doy.max())
-                    tx90p = _ensure_thr_has_day(tx90p, max_doy)
-                    thr_t = tx90p.sel(dayofyear=scen_doy)
+                    tn10p = _ensure_thr_has_day(tn10p, max_doy)
+                    thr_t = tn10p.sel(dayofyear=scen_doy)
 
-                    warm = tas_scen_c > thr_t  # daily boolean mask
+                    cold = tn_scen_c < thr_t
+                    cold = cold.chunk({"time": -1})  # silence parallelized core-dim warnings
 
-                    # Count warm-spell days per year
+                    # Count cold-spell days per year
                     per_year = []
-                    for yr, grp in warm.groupby("time.year"):
-                        days = _wsdi_days_per_year(grp, runlen=runlen).assign_coords(year=yr)
+                    for yr, grp in cold.groupby("time.year"):
+                        grp = grp.chunk({"time": -1})
+                        days = _csdi_days_per_year(grp, runlen=runlen).assign_coords(year=yr)
                         per_year.append(days)
                     if not per_year:
                         ds.close(); thr_ds.close()
                         continue
 
-                    wsdi_yearly = xr.concat(per_year, dim="year")
-                    wsdi_mean = wsdi_yearly.mean(dim="year").astype("float32").load()
+                    csdi_yearly = xr.concat(per_year, dim="year")
+                    csdi_mean = csdi_yearly.mean(dim="year").astype("float32").load()
 
                     # Streaming ensemble mean
                     if ens_sum is None:
-                        ens_sum = wsdi_mean.copy()
+                        ens_sum = csdi_mean.copy()
                         ens_n = 1
                     else:
-                        if set(wsdi_mean.dims) != set(ens_sum.dims) or any(
-                            wsdi_mean.sizes.get(d) != ens_sum.sizes.get(d) for d in wsdi_mean.dims
+                        if set(csdi_mean.dims) != set(ens_sum.dims) or any(
+                            csdi_mean.sizes.get(d) != ens_sum.sizes.get(d) for d in csdi_mean.dims
                         ):
-                            wsdi_mean = wsdi_mean.reindex_like(ens_sum)
-                        ens_sum = ens_sum + wsdi_mean
+                            csdi_mean = csdi_mean.reindex_like(ens_sum)
+                        ens_sum = ens_sum + csdi_mean
                         ens_n += 1
 
                     used_models.append(model)
@@ -351,24 +335,24 @@ def run(cfg):
                     print(f"   ⚠️ {model}: {e}")
 
             if ens_sum is None or ens_n == 0:
-                print(f"   ❌ No valid WSDI outputs for {experiment} / {slice_name}.")
+                print(f"   ❌ No valid CSDI outputs for {experiment} / {slice_name}.")
                 continue
 
             ensemble_mean = (ens_sum / float(ens_n)).astype("float32")
             label = _label_slug(slice_name)
-            out_nc = (OUTPUT_DIR / f"wsdi_ensemble_mean_{experiment}_{label}.nc")
+            out_nc = (OUTPUT_DIR / f"csdi_ensemble_mean_{experiment}_{label}.nc")
 
             xr.Dataset(
-                {"wsdi": ensemble_mean.assign_attrs({
+                {"csdi": ensemble_mean.assign_attrs({
                     "units": "days",
-                    "long_name": f"WSDI (days in spells ≥ {runlen} with TX > model TX90p, baseline {ref_start}–{ref_end})",
+                    "long_name": f"CSDI (days in spells ≥ {runlen} with TN < model TN10p, baseline {ref_start}–{ref_end})",
                     "min_spell_length": runlen,
                     "threshold_reference": f"{ref_start} to {ref_end}",
                 })},
                 attrs={
-                    "title": f"WSDI Ensemble Mean — {experiment} — {slice_name}",
+                    "title": f"CSDI Ensemble Mean — {experiment} — {slice_name}",
                     "models_included": ", ".join(sorted(set(used_models))),
-                    "created_by": "wsdi_compute.py",
+                    "created_by": "csdi_compute.py",
                 },
             ).to_netcdf(out_nc, engine="h5netcdf")
             print(f"   ✅ Saved → {out_nc.name}  (models: {len(used_models)})")

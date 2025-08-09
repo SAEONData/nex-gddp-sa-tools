@@ -2,115 +2,150 @@
 """
 tnn_compute.py
 ---------------------------------------------------------------
-Calculate and save ensemble mean of Coldest Daily Minimum Temperature (TNn)
-for CMIP6 tasmin data across time slices and scenarios.
+Compute TNn (coldest daily minimum temperature, °C) for each
+experiment and configured time slice, then save the multi-model
+ensemble mean.
+
+Outputs:
+  data/outputs/tnn/tnn_ensemble_mean_<experiment>_<slice>.nc
 """
 
 from pathlib import Path
-import glob
-import time
+import glob, time, warnings
+from collections import defaultdict
+
+import dask
+from dask.diagnostics import ProgressBar
 import numpy as np
 import xarray as xr
-import xclim
-from xclim.indices import tn_min
-from dask.diagnostics import ProgressBar
-import warnings
-import dask  # ✅ Needed for computing lazy dask arrays
-warnings.filterwarnings("ignore")
+from xclim.core.units import convert_units_to
 
+warnings.filterwarnings("ignore", message=".*already exists and will be overwritten.")
+
+# ----------------- helpers -----------------
+def _label_slug(s: str) -> str:
+    return (
+        s.lower()
+         .replace(" ", "_")
+         .replace("(", "").replace(")", "")
+         .replace("–", "-")
+    )
+
+def _select_bbox(ds: xr.Dataset, lat_bounds, lon_bounds) -> xr.Dataset:
+    if "lat" not in ds.coords or "lon" not in ds.coords:
+        raise ValueError("Dataset is missing 'lat' and/or 'lon'.")
+    lat = ds["lat"]; lon = ds["lon"]
+    lat_asc = bool(lat[0] < lat[-1])
+    lon_asc = bool(lon[0] < lon[-1])
+    lat_slice = slice(lat_bounds[0], lat_bounds[1]) if lat_asc else slice(lat_bounds[1], lat_bounds[0])
+    lon_slice = slice(lon_bounds[0], lon_bounds[1]) if lon_asc else slice(lon_bounds[1], lon_bounds[0])
+    return ds.sel(lat=lat_slice, lon=lon_slice)
+
+# ----------------- main -----------------
 def run(cfg):
-    start_time = time.time()
-    print("Starting TNn processing...\n")
+    t0 = time.time()
+    print("🧮 Starting TNn (coldest daily Tmin) processing…")
 
-    # ───── Config ─────
+    # Config
     lat_bounds = [cfg["region"]["lat_min"], cfg["region"]["lat_max"]]
     lon_bounds = [cfg["region"]["lon_min"], cfg["region"]["lon_max"]]
+
+    tnn_cfg = cfg.get("tnn", {})
+    varname  = tnn_cfg.get("variable", "tasmin")
+    aggr     = tnn_cfg.get("aggregation", "annual")  # 'annual'|'seasonal'|'monthly'
+    aggr_map = {"monthly": "MS", "seasonal": "QS-DEC", "annual": "YS"}
+    freq_code = aggr_map.get(aggr, "YS")
 
     time_slices = cfg.get("time_slices", {})
     experiments = cfg.get("experiments", {}).get("select", ["historical"])
 
+    # Paths
     ROOT       = Path(__file__).resolve().parents[2]
-    DATA_DIR   = ROOT / "data" / "tasmin"
+    DATA_DIR   = ROOT / "data" / varname
     OUTPUT_DIR = ROOT / "data" / "outputs" / "tnn"
+    OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
+
+    model_file_counts = defaultdict(int)
 
     for experiment in experiments:
-        print(f"\n ▶ Running experiment: {experiment}")
-
-        # Define applicable time slices
-        if experiment == "historical":
-            slice_names = ["Baseline (1995–2014)"]
-        else:
-            slice_names = [name for name in time_slices if not name.startswith("Baseline")]
-
+        print(f"\n📁 Experiment: {experiment}")
         nc_files = sorted(Path(p).resolve() for p in glob.glob(str(DATA_DIR / f"**/{experiment}/*.nc"), recursive=True))
         print(f"   Found {len(nc_files)} NetCDF files.")
-
         if not nc_files:
-            print(f"⚠️ No files found for {experiment}. Skipping.")
             continue
+
+        slice_names = ["Baseline (1995–2014)"] if experiment == "historical" else \
+                      [n for n in time_slices if not n.startswith("Baseline")]
 
         for slice_name in slice_names:
             start, end = time_slices.get(slice_name, [None, None])
-            print(f" → Time slice: {slice_name} ({start} to {end})")
+            print(f"\n→ Time slice: {slice_name}  ({start} to {end})")
 
             model_data, model_names = [], []
 
             for i, nc_file in enumerate(nc_files, 1):
-                print(f"   [{i}/{len(nc_files)}] Processing: {nc_file.name}")
+                print(f"   [{i}/{len(nc_files)}] {nc_file.name}")
                 try:
                     ds = xr.open_dataset(nc_file, chunks={"time": -1})
-                    ds = ds.sel(lat=slice(*lat_bounds), lon=slice(*lon_bounds))
+                    ds = _select_bbox(ds, lat_bounds, lon_bounds)
                     ds = ds.sel(time=slice(start, end))
 
-                    if "tasmin" not in ds:
-                        raise ValueError("Missing 'tasmin' variable in dataset.")
+                    if varname not in ds:
+                        print(f"     ⚠️ Missing variable '{varname}'; skipping.")
+                        continue
 
-                    tasmin = ds["tasmin"] - 273.15  # Convert to Celsius
-                    tasmin.attrs.update({
-                        "units": "degC",
-                        "cell_methods": "time: min",
-                        "standard_name": "air_temperature"
-                    })
+                    # Convert to °C
+                    tasmin_c = convert_units_to(ds[varname], "degC")
 
-                    tnn = tn_min(tasmin, freq="YS").mean(dim="time")
+                    # Per-period minimum of daily Tmin (TNn)
+                    tnn_per = tasmin_c.resample(time=freq_code).min(dim="time")
+                    if tnn_per.size == 0 or tnn_per.isnull().all():
+                        print("     ⚠️ Empty/NaN TNn; skipping.")
+                        continue
 
-                    if tnn.isnull().all():
-                        raise ValueError("All TNn values are NaN.")
+                    # Mean across periods within the slice
+                    tnn_mean = tnn_per.mean(dim="time")
 
-                    model_name = nc_file.parts[-3] if experiment in nc_file.parts else nc_file.stem.split("_")[2]
-                    model_data.append(tnn)
-                    model_names.append(model_name)
+                    # Model name
+                    try:
+                        idx = nc_file.parts.index(experiment)
+                        model = nc_file.parts[idx - 1]
+                    except ValueError:
+                        model = ds.attrs.get("source_id") or ds.attrs.get("model_id") or nc_file.stem.split("_")[2]
+
+                    model_data.append(tnn_mean)
+                    model_names.append(model)
+                    model_file_counts[model] += 1
 
                 except Exception as e:
-                    print(f"⚠️ Error processing {nc_file.name}: {e}")
+                    print(f"     ⚠️ Error processing {nc_file.name}: {e}")
 
             if not model_data:
-                print(f"❌ No valid outputs for {experiment} / {slice_name}. Skipping.")
+                print(f"   ❌ No valid outputs for {experiment} / {slice_name}.")
                 continue
 
-            print(f"\n   → Computing ensemble mean for {experiment} / {slice_name}...")
+            print("   → Computing ensemble mean…")
             with ProgressBar():
-                computed_data = dask.compute(*model_data)
-                stack = xr.concat(computed_data, dim="model")
-                stack["model"] = model_names
-                ensemble_mean = stack.mean(dim="model")
+                computed = dask.compute(*model_data)
+            stack = xr.concat(computed, dim="model").assign_coords(model=("model", model_names))
+            ensemble_mean = stack.mean(dim="model")
 
-            label = slice_name.lower().replace(" ", "_").replace("(", "").replace(")", "").replace("–", "-")
+            out_da = ensemble_mean.assign_attrs({
+                "units": "°C",
+                "long_name": "TNn (Annual/period Minimum of Daily Tmin)",
+                "aggregation": aggr,
+                "aggregation_code": freq_code,
+                "models_included": ", ".join(sorted(set(model_names))),
+                "created_by": "tnn_compute.py",
+            })
+
+            label = _label_slug(slice_name)
             out_nc = OUTPUT_DIR / f"tnn_ensemble_mean_{experiment}_{label}.nc"
-            out_nc.parent.mkdir(parents=True, exist_ok=True)
+            xr.Dataset({"tnn": out_da}).to_netcdf(out_nc)
+            print(f"   ✅ Saved → {out_nc.name}")
 
-            ds_out = xr.Dataset(
-                {"tnn": ensemble_mean},
-                attrs={
-                    "title": f"Ensemble Mean of TNn - {experiment} - {slice_name}",
-                    "description": "Coldest Daily Minimum Temperature (TNn) from tasmin",
-                    "units": "degC",
-                    "models_included": ", ".join(sorted(set(model_names))),
-                    "created_by": "tnn_compute.py",
-                }
-            )
+    print("\n📊 Files per model (any slice):")
+    for m in sorted(model_file_counts):
+        print(f"   {m:30} {model_file_counts[m]:>4d}")
 
-            ds_out.to_netcdf(out_nc)
-            print(f"✅ Saved NetCDF → {out_nc}")
-
-    print(f"\n✅ All TNn processing complete in {round(time.time() - start_time, 1)} seconds.")
+    print(f"\n⏱️ Completed in {round(time.time() - t0, 1)} s.")

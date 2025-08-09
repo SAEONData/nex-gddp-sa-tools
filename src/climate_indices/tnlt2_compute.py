@@ -1,13 +1,18 @@
 #!/usr/bin/env python3
 """
-txx_compute.py
+tnlt2_compute.py
 ---------------------------------------------------------------
-Compute TXx (warmest daily maximum temperature, °C) for each
-experiment and configured time slice, then save the multi-model
-ensemble mean.
+Compute TNlt2: number of days with tasmin < 2°C,
+for each experiment and configured time slice, then save the
+multi-model ensemble mean.
 
 Outputs:
-  data/outputs/txx/txx_ensemble_mean_<experiment>_<slice>.nc
+  data/outputs/tnlt2/tnlt2_ensemble_mean_<experiment>_<slice>.nc
+
+Notes
+- Expects daily minimum temperature variable "tasmin".
+- Converts to °C before thresholding.
+- Aggregation freq: annual (default 'YS'), seasonal ('QS-DEC'), monthly ('MS').
 """
 
 from pathlib import Path
@@ -32,6 +37,7 @@ def _label_slug(s: str) -> str:
     )
 
 def _select_bbox(ds: xr.Dataset, lat_bounds, lon_bounds) -> xr.Dataset:
+    """Subset robustly regardless of ascending/descending coords."""
     if "lat" not in ds.coords or "lon" not in ds.coords:
         raise ValueError("Dataset is missing 'lat' and/or 'lon'.")
     lat = ds["lat"]; lon = ds["lon"]
@@ -44,15 +50,16 @@ def _select_bbox(ds: xr.Dataset, lat_bounds, lon_bounds) -> xr.Dataset:
 # ----------------- main -----------------
 def run(cfg):
     t0 = time.time()
-    print("🧮 Starting TXx (warmest daily Tmax) processing…")
+    print("🧮 Starting TNlt2 (Days tasmin < 2°C) processing…")
 
     # Config
     lat_bounds = [cfg["region"]["lat_min"], cfg["region"]["lat_max"]]
     lon_bounds = [cfg["region"]["lon_min"], cfg["region"]["lon_max"]]
 
-    txx_cfg = cfg.get("txx", {})
-    varname  = txx_cfg.get("variable", "tasmax")
-    aggr     = txx_cfg.get("aggregation", "annual")  # 'annual'|'seasonal'|'monthly'
+    tnlt2_cfg = cfg.get("tnlt2", {})
+    thresh_c = float(tnlt2_cfg.get("threshold_celsius", 2.0))  # < 2°C by default
+    varname  = tnlt2_cfg.get("variable", "tasmin")
+    aggr     = tnlt2_cfg.get("aggregation", "annual")  # 'annual'|'seasonal'|'monthly'
     aggr_map = {"monthly": "MS", "seasonal": "QS-DEC", "annual": "YS"}
     freq_code = aggr_map.get(aggr, "YS")
 
@@ -62,7 +69,7 @@ def run(cfg):
     # Paths
     ROOT       = Path(__file__).resolve().parents[2]
     DATA_DIR   = ROOT / "data" / varname
-    OUTPUT_DIR = ROOT / "data" / "outputs" / "txx"
+    OUTPUT_DIR = ROOT / "data" / "outputs" / "tnlt2"
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 
     model_file_counts = defaultdict(int)
@@ -95,16 +102,18 @@ def run(cfg):
                         continue
 
                     # Convert to °C
-                    tasmax_c = convert_units_to(ds[varname], "degC")
+                    tasmin_c = convert_units_to(ds[varname], "degC")
 
-                    # Per-period maximum of daily Tmax (TXx)
-                    txx_per = tasmax_c.resample(time=freq_code).max(dim="time")
-                    if txx_per.size == 0 or txx_per.isnull().all():
-                        print("     ⚠️ Empty/NaN TXx; skipping.")
+                    # Boolean mask for days < threshold
+                    cold_mask = tasmin_c < thresh_c
+                    tnlt2_per = cold_mask.resample(time=freq_code).sum(dim="time")  # days per period
+
+                    if tnlt2_per.size == 0 or tnlt2_per.isnull().all():
+                        print("     ⚠️ Empty/NaN TNlt2; skipping.")
                         continue
 
-                    # Mean across periods within the slice
-                    txx_mean = txx_per.mean(dim="time")
+                    # Average across periods within the slice
+                    tnlt2_mean = tnlt2_per.mean(dim="time")
 
                     # Model name
                     try:
@@ -113,7 +122,7 @@ def run(cfg):
                     except ValueError:
                         model = ds.attrs.get("source_id") or ds.attrs.get("model_id") or nc_file.stem.split("_")[2]
 
-                    model_data.append(txx_mean)
+                    model_data.append(tnlt2_mean)
                     model_names.append(model)
                     model_file_counts[model] += 1
 
@@ -131,17 +140,18 @@ def run(cfg):
             ensemble_mean = stack.mean(dim="model")
 
             out_da = ensemble_mean.assign_attrs({
-                "units": "°C",
-                "long_name": "TXx (Annual/period Maximum of Daily Tmax)",
+                "units": "days",
+                "long_name": f"Days with tasmin < {thresh_c} °C",
                 "aggregation": aggr,
                 "aggregation_code": freq_code,
+                "threshold": f"{thresh_c} °C",
                 "models_included": ", ".join(sorted(set(model_names))),
-                "created_by": "txx_compute.py",
+                "created_by": "tnlt2_compute.py",
             })
 
             label = _label_slug(slice_name)
-            out_nc = OUTPUT_DIR / f"txx_ensemble_mean_{experiment}_{label}.nc"
-            xr.Dataset({"txx": out_da}).to_netcdf(out_nc)
+            out_nc = OUTPUT_DIR / f"tnlt2_ensemble_mean_{experiment}_{label}.nc"
+            xr.Dataset({"tnlt2": out_da}).to_netcdf(out_nc)
             print(f"   ✅ Saved → {out_nc.name}")
 
     print("\n📊 Files per model (any slice):")
