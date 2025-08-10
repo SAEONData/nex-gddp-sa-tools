@@ -293,17 +293,166 @@ indices:
 # legend_label: "CSDI Anomaly (Δ days vs 1995–2014)"
 # anomaly: true
 # 
-  
-- name: txgt50p
-  variable: txgt50p_anomaly
-  data_dir: "data/outputs/txgt50p"
-  cmap: RdBu_r
-  legend_label: "TXgt50p Anomaly (Δ percentage points vs 1995–2014)"
+# 
+#- name: txgt50p
+# variable: txgt50p_anomaly
+# data_dir: "data/outputs/txgt50p"
+# cmap: RdBu_r
+# legend_label: "TXgt50p Anomaly (Δ percentage points vs 1995–2014)"
+# anomaly: true
+# 
+#- name: txgt50p
+# variable: txgt50p
+# data_dir: "data/outputs/txgt50p"
+# cmap: YlOrRd
+# legend_label: "TXgt50p (% of days)"
+# anomaly: false
+# 
+## Absolute values – good for thresholds & planning
+## Absolute values – good for thresholds & planning
+#- name: txge30
+# variable: txge30
+# data_dir: "data/outputs/txge30"
+# output: "txge30_abs_bioregion_timeslices.png"
+# cmap: YlOrRd
+# legend_label: "Days per year with TX ≥ 30°C"
+# anomaly: false
+# 
+## Anomalies – only if you have anomaly files written!
+#- name: txge30
+# variable: txge30
+# data_dir: "data/outputs/txge30"
+# output: "txge30_anom_bioregion_timeslices.png"
+# cmap: RdBu_r
+# legend_label: "Change in days per year (relative to 1995–2014)"
+# anomaly: true
+# 
+#- name: txd_tnd
+# variable: txd_tnd_events
+# data_dir: "data/outputs/txd_tnd"
+# output: "txdtnd_timeslices.png"
+# cmap: YlOrRd
+# legend_label: "Heatwave events per year (TX & TN > 95th, ≥3 days)"
+# anomaly: false
+# 
+#- name: txd_tnd
+# variable: txd_tnd_events_anom
+# data_dir: "data/outputs/txd_tnd"
+# output: "txd_tnd_anomaly_timeslices.png"
+# cmap: RdBu_r
+# legend_label: "txd_tnd (Δ events/year vs 1995–2014)"
+# anomaly: true
+# 
+# # Absolute TNx — what is the typical hottest-night temperature?
+#- name: tnx
+# variable: tnx
+# data_dir: "data/outputs/tnx"
+# output: "tnx_abs_bioregion_timeslices.png"
+# cmap: YlOrRd                 # warm sequential reads naturally for temperature
+# legend_label: "TNx (Warmest Daily Min, °C)"
+# anomaly: false
+# # Optional fixed bounds once you see first plots:
+# # vmin: 20
+# # vmax: 35
+# 
+# # Anomaly TNx — how much hotter are the hottest nights vs 1995–2014?
+#- name: tnx
+# variable: tnx
+# data_dir: "data/outputs/tnx"
+# output: "tnx_anom_bioregion_timeslices.png"
+# cmap: RdBu_r                 # red = warmer nights, blue = cooler
+# legend_label: "TNx Anomaly (Δ °C vs 1995–2014)"
+# anomaly: true
+# # Optional symmetric bounds:
+# # vmin: -3
+# # vmax:  3
+# 
+## Anomaly (recommended): warmer coldest days show as red
+#- name: txn
+# variable: txn_anomaly
+# data_dir: "data/outputs/txn"
+# output: "txn_bioregion_timeslices_anomaly.png"
+# cmap: RdBu_r                 # red = warmer, blue = colder
+# legend_label: "TXn Anomaly (Δ °C vs 1995–2014)"
+# anomaly: true
+# 
+## Absolute: coldest-day climatology by slice
+#- name: txn
+# variable: txn
+# data_dir: "data/outputs/txn"
+# output: "txn_bioregion_timeslices_abs.png"
+# cmap: Blues_r                 # cool sequential works well for cold extremes
+# legend_label: "TXn (Coldest Daily Tmax, °C)"
+# anomaly: false
+# 
+## Anomaly (recommended) — fewer cool days show as red
+#- name: tx10p
+# variable: tx10p_anomaly
+# data_dir: "data/outputs/tx10p"
+# output: "tx10p_bioregion_timeslices_anomaly.png"
+# cmap: RdBu                       # red = fewer cool days, blue = more
+# legend_label: "TX10p Anomaly (Δ percentage points vs 1995–2014)"
+# anomaly: true
+# 
+## Absolute — % of cool days per slice
+#- name: tx10p
+# variable: tx10p
+# data_dir: "data/outputs/tx10p"
+# output: "tx10p_bioregion_timeslices_abs.png"
+# cmap: YlGnBu
+# legend_label: "TX10p (% of days)"
+# anomaly: false
+
+## Anomaly (recommended) — red = more hot days, blue = fewer
+#- name: tx90p
+# variable: tx90p_anomaly
+# data_dir: "data/outputs/tx90p"
+# output: "tx90p_bioregion_timeslices_anomaly.png"
+# cmap: RdBu_r
+# legend_label: "TX90p Anomaly (Δ percentage points vs 1995–2014)"
+# anomaly: true
+# 
+## Absolute — % of hot days per slice
+#- name: tx90p
+# variable: tx90p
+# data_dir: "data/outputs/tx90p"
+# output: "tx90p_bioregion_timeslices_abs.png"
+# cmap: YlOrRd
+# legend_label: "TX90p (% of days)"
+# anomaly: false
+# 
+## Anomaly — blue = MORE cold nights, red = FEWER (warming)
+#- name: tn10p
+# variable: tn10p_anomaly
+# data_dir: "data/outputs/tn10p"
+# output: "tn10p_bioregion_timeslices_anomaly.png"
+# cmap: RdBu               # not reversed: positive (more cold nights) = blue
+# legend_label: "TN10p Anomaly (Δ percentage points vs 1995–2014)"
+# anomaly: true
+# 
+## Absolute — % of cold nights per slice
+#- name: tn10p
+# variable: tn10p
+# data_dir: "data/outputs/tn10p"
+# output: "tn10p_bioregion_timeslices_abs.png"
+# cmap: Blues
+# legend_label: "TN10p (% of days)"
+# anomaly: false
+# 
+# Anomaly — red = MORE warm nights, blue = FEWER
+- name: tn90p
+  variable: tn90p_anomaly
+  data_dir: "data/outputs/tn90p"
+  output: "tn90p_bioregion_timeslices_anomaly.png"
+  cmap: RdBu_r                 # red = increase in warm nights
+  legend_label: "TN90p Anomaly (Δ percentage points vs 1995–2014)"
   anomaly: true
   
-- name: txgt50p
-  variable: txgt50p
-  data_dir: "data/outputs/txgt50p"
+# Absolute — % of warm nights per slice
+- name: tn90p_abs
+  variable: tn90p
+  data_dir: "data/outputs/tn90p"
+  output: "tn90p_bioregion_timeslices_abs.png"
   cmap: YlOrRd
-  legend_label: "TXgt50p (% of days)"
+  legend_label: "TN90p (% of days)"
   anomaly: false

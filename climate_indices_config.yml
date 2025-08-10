@@ -35,7 +35,15 @@ run_indices:
 # - tnn
 # - wsdi
 # - csdi
-  - txgt50p   
+# - txgt50p
+# - txge30
+# - txd_tnd
+# - tnx
+# - txn
+# - tx10p
+# - tx90p
+# - tn10p
+  - tn90p
   
 region:
   # Spatial bounding box for subsetting climate model data
@@ -141,5 +149,47 @@ csdi:
   
 txgt50p:
   variable: tasmax
+  reference_start: "1995-01-01"
+  reference_end:   "2014-12-31"
+  
+txge30:
+  # Days per year with tasmax ≥ threshold (default 30 °C),
+  # averaged within each time slice, then ensemble-mean.
+  variable: tasmax
+  threshold_c: 30.0       # change to 35.0 for TXge35-style runs
+  # aggregation is implicit (counts per year, average within slice)
+  
+txd_tnd:
+  tx_variable: tasmax
+  tn_variable: tasmin
+  percentile: 95
+  min_spell_length: 3
+  reference_start: "1995-01-01"
+  reference_end:   "2014-12-31"
+  
+tnx:
+  variable: tasmin
+  # No threshold: we take the annual max of daily Tmin (hottest night)
+  
+txn:
+  variable: tasmax
+  
+tx10p:
+  variable: tasmax
+  reference_start: "1995-01-01"
+  reference_end:   "2014-12-31"
+  
+tx90p:
+  variable: tasmax
+  reference_start: "1995-01-01"
+  reference_end:   "2014-12-31"
+  
+tn10p:
+  variable: tasmin
+  reference_start: "1995-01-01"
+  reference_end:   "2014-12-31"
+  
+tn90p:
+  variable: tasmin
   reference_start: "1995-01-01"
   reference_end:   "2014-12-31"
