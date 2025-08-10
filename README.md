@@ -1,3 +1,9 @@
+> **⚠ Work in Progress**
+>
+> This repository is under active development.  
+> Some scripts and features are complete, while others are still being tested or refined.  
+> Please check the documentation for which components are ready for use, and expect that functionality or structure may change.
+
 # nex-gddp-sa-tools
 
 Helper scripts for exploring, downloading, and analysing **NASA NEX-GDDP-CMIP6** downscaled climate projections for the South African domain (SAWS + SAEON).
