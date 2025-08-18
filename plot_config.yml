@@ -449,7 +449,7 @@ indices:
   anomaly: true
   
 # Absolute — % of warm nights per slice
-- name: tn90p_abs
+- name: tn90p
   variable: tn90p
   data_dir: "data/outputs/tn90p"
   output: "tn90p_bioregion_timeslices_abs.png"
