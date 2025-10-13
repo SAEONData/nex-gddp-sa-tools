@@ -90,7 +90,7 @@ def run(cfg):
 
     # Paths
     ROOT       = Path(__file__).resolve().parents[2]
-    DATA_DIR   = ROOT / "data" / "pr"
+    DATA_DIR   = ROOT / "data" / "combined"/ "pr"
     OUTPUT_DIR = ROOT / "data" / "outputs" / "sdii"
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 

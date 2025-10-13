@@ -1,12 +1,15 @@
 #!/usr/bin/env python3
 """
-csdi_compute.py
+csdi_compute.py (single-file-per-model, cftime-safe)
 ---------------------------------------------------------------
 CSDI (Cold Spell Duration Index):
 Days belonging to spells of >= min_spell_length consecutive days
 with tasmin < the MODEL-SPECIFIC TN10p (10th pct by calendar day),
 where TN10p is computed from that model's historical baseline
 (1995–2014 by default) and cached to disk.
+
+Inputs (combined, one file per model+experiment):
+  data/combined/tasmin/<experiment>/tasmin_<MODEL>_<experiment>.nc
 
 Outputs
   data/outputs/csdi/csdi_ensemble_mean_<experiment>_<slice>.nc
@@ -15,113 +18,101 @@ Caches
 """
 
 from __future__ import annotations
-import os, re, glob, time, warnings
+import os, glob, time, warnings
 from pathlib import Path
-from typing import List, Dict, Tuple, Optional
+from typing import Dict, Tuple, List
 
 import numpy as np
 import xarray as xr
 from xclim.core.units import convert_units_to
 
-# ── runtime settings to avoid crashes/warnings and keep memory tame ──
+# ───────────────── runtime guards ─────────────────
 warnings.filterwarnings("ignore")
-os.environ.setdefault("HDF5_USE_FILE_LOCKING", "FALSE")  # reduce HDF5 lock issues
-os.environ.setdefault("XR_USE_FLOX", "0")                # use blockwise for groupby-quantile
+os.environ.setdefault("HDF5_USE_FILE_LOCKING", "FALSE")
+os.environ.setdefault("XR_USE_FLOX", "0")  # simpler groupby backend
 
 try:
     import dask
-    dask.config.set({"array.slicing.split_large_chunks": True})
+    dask.config.set({
+        "array.slicing.split_large_chunks": True,
+        "scheduler": "single-threaded",    # avoid HDF5 threading crashes
+    })
 except Exception:
     pass
 
-# ───────────────────────── helpers ───────────────────────── #
+# ───────────────── helpers ─────────────────
 
 def _label_slug(s: str) -> str:
-    return (s.lower().replace(" ", "_").replace("(", "").replace(")", "").replace("–", "-"))
+    return (s.lower().replace(" ", "_").replace("(", "").replace(")", "")
+                 .replace("–", "-").replace("/", "-"))
 
 def _select_bbox(ds: xr.Dataset, lat_bounds, lon_bounds) -> xr.Dataset:
     if "lat" not in ds.coords or "lon" not in ds.coords:
-        raise ValueError("Dataset missing 'lat' and/or 'lon'.")
+        return ds
     lat = ds["lat"]; lon = ds["lon"]
     lat_asc = bool(lat[0] < lat[-1]); lon_asc = bool(lon[0] < lon[-1])
-    lat_slice = slice(lat_bounds[0], lat_bounds[1]) if lat_asc else slice(lat_bounds[1], lat_bounds[0])
-    lon_slice = slice(lon_bounds[0], lon_bounds[1]) if lon_asc else slice(lon_bounds[1], lon_bounds[0])
-    return ds.sel(lat=lat_slice, lon=lon_slice)
+    return ds.sel(
+        lat=slice(lat_bounds[0], lat_bounds[1]) if lat_asc else slice(lat_bounds[1], lat_bounds[0]),
+        lon=slice(lon_bounds[0], lon_bounds[1]) if lon_asc else slice(lon_bounds[1], lon_bounds[0]),
+    )
 
-def _engine_open_kwargs():
-    return dict(engine="h5netcdf", use_cftime=True, lock=False)
+def _open_single(path: Path) -> xr.Dataset:
+    """Open one combined file robustly (no mfdataset, cftime-safe)."""
+    for kw in [
+        dict(engine="h5netcdf", use_cftime=True, decode_times=True, chunks={"time": -1}, mask_and_scale=True, lock=False),
+        dict(engine="scipy",     use_cftime=True, decode_times=True, chunks={"time": -1}),
+        dict(engine="scipy",     use_cftime=True, decode_times=False, chunks={"time": -1}),  # decode later
+    ]:
+        try:
+            ds = xr.open_dataset(str(path), **kw)
+            if not kw.get("decode_times", True):
+                try:
+                    ds = xr.decode_cf(ds)
+                except Exception:
+                    pass
+            return ds
+        except Exception:
+            continue
+    raise IOError(f"Could not open: {path}")
 
-def _is_healthy_file(p: Path) -> bool:
-    try:
-        ds = xr.open_dataset(str(p), chunks={}, **_engine_open_kwargs())
-        ds.close()
-        return True
-    except Exception:
-        return False
-
-def _open_mf(paths: List[Path]) -> xr.Dataset:
-    paths = [p for p in paths if _is_healthy_file(p)]
-    if not paths:
-        raise IOError("No healthy files remain after screening.")
-    try:
-        return xr.open_mfdataset(
-            [str(p) for p in paths],
-            combine="by_coords",
-            parallel=True,
-            chunks={"time": -1},  # one time chunk -> blockwise quantile ok
-            **_engine_open_kwargs(),
-        )
-    except Exception:
-        return xr.open_mfdataset(
-            [str(p) for p in paths],
-            combine="by_coords",
-            parallel=True,
-            chunks={"time": -1},
-            use_cftime=True,
-            lock=False,
-        )
-
-_year_re = re.compile(r"(?<!\d)(19|20)\d{2}(?!\d)")
-def _year_from_name(p: Path) -> Optional[int]:
-    m = _year_re.search(p.name)
-    return int(m.group()) if m else None
-
-def _files_for_model_exp(data_dir: Path, model: str, experiment: str) -> List[Path]:
-    hits = sorted(data_dir.glob(f"**/{model}/{experiment}/*.nc"))
-    if hits:
-        return hits
-    hits = [p for p in data_dir.glob(f"**/{experiment}/*.nc") if model in str(p)]
-    return sorted(hits)
-
-def _find_model_name(p: Path, experiment: str) -> str:
+def _model_from_filename(p: Path, experiment: str) -> str:
+    # Expect: tasmin_<MODEL>_<experiment>.nc
+    toks = p.stem.split("_")
+    if len(toks) >= 3 and toks[-1] == experiment:
+        return "_".join(toks[1:-1])  # model may contain hyphens/underscores
+    # fallback: folder name before experiment
     try:
         idx = p.parts.index(experiment)
         if idx > 0:
             return p.parts[idx - 1]
     except ValueError:
         pass
-    toks = p.stem.split("_")
-    return toks[2] if len(toks) > 2 else "unknown_model"
+    return "unknown_model"
 
-def _models_in_files(files: List[Path], experiment: str) -> List[str]:
-    return sorted({ _find_model_name(p, experiment) for p in files })
+def _list_models(exp_dir: Path, experiment: str) -> Dict[str, Path]:
+    """Return {model: file} mapping for combined files in a given experiment dir."""
+    mapping = {}
+    for f in sorted(exp_dir.glob("*.nc")):
+        m = _model_from_filename(f, experiment)
+        mapping[m] = f
+    return mapping
 
 def _slice_time_cf(ds: xr.Dataset, start: str, end: str) -> xr.Dataset:
+    """Slice with dataset's own calendar dtype."""
     if "time" not in ds or ds.sizes.get("time", 0) == 0:
         return ds
     t0 = ds["time"].values[0]
     if isinstance(t0, np.datetime64):
         s = np.datetime64(start); e = np.datetime64(end)
     else:
-        cls = type(t0)
-        y0, m0, d0 = (int(start[:4]), int(start[5:7]), int(start[8:10]))
-        y1, m1, d1 = (int(end[:4]), int(end[5:7]), int(end[8:10]))
+        y0,m0,d0 = int(start[:4]), int(start[5:7]), int(start[8:10])
+        y1,m1,d1 = int(end[:4]),   int(end[5:7]),   int(end[8:10])
         try:
-            s = cls(y0, m0, d0); e = cls(y1, m1, d1)
+            s = type(t0)(y0,m0,d0); e = type(t0)(y1,m1,d1)
         except TypeError:
             import cftime
-            s = cftime.DatetimeProlepticGregorian(y0, m0, d0)
-            e = cftime.DatetimeProlepticGregorian(y1, m1, d1)
+            s = cftime.DatetimeProlepticGregorian(y0,m0,d0)
+            e = cftime.DatetimeProlepticGregorian(y1,m1,d1)
     tmin = ds["time"].values[0]; tmax = ds["time"].values[-1]
     s = s if s > tmin else tmin
     e = e if e < tmax else tmax
@@ -129,21 +120,21 @@ def _slice_time_cf(ds: xr.Dataset, start: str, end: str) -> xr.Dataset:
         return ds.isel(time=slice(0, 0))
     return ds.sel(time=slice(s, e))
 
-def _calendar10p_threshold(tas_hist_c: xr.DataArray) -> xr.DataArray:
+def _calendar10p_threshold(tn_hist_c: xr.DataArray) -> xr.DataArray:
     """TN10p (10th percentile by calendar day) on baseline (cftime-safe)."""
-    tas_hist_c = tas_hist_c.chunk({"time": -1, "lat": 80, "lon": 80})
-    doy = tas_hist_c["time"].dt.dayofyear
+    tn_hist_c = tn_hist_c.chunk({"time": -1, "lat": 80, "lon": 80})
     thr = (
-        tas_hist_c
-        .assign_coords(dayofyear=doy)
+        tn_hist_c
+        .assign_coords(dayofyear=tn_hist_c["time"].dt.dayofyear)
         .groupby("dayofyear")
-        .quantile(0.1, dim="time", skipna=True)
+        .quantile(0.10, dim="time", skipna=True)
+        .rename("tn10p")
     )
-    thr.name = "tn10p"
-    thr.attrs.update({"units": "degC"})
+    thr.attrs["units"] = "degC"
     return thr
 
 def _ensure_thr_has_day(thr_doy: xr.DataArray, max_doy: int) -> xr.DataArray:
+    """If scenario has day 366 and thr lacks it, copy day 365."""
     have = set(int(v) for v in np.atleast_1d(thr_doy["dayofyear"].values))
     if max_doy == 366 and 366 not in have:
         thr366 = thr_doy.sel(dayofyear=365)
@@ -151,7 +142,7 @@ def _ensure_thr_has_day(thr_doy: xr.DataArray, max_doy: int) -> xr.DataArray:
     return thr_doy
 
 def _csdi_days_in_runs_1d(x: np.ndarray, runlen: int) -> np.ndarray:
-    """Count True days that belong to runs >= runlen in 1D array."""
+    """Count True days that belong to runs >= runlen in a 1D bool array."""
     if x.size == 0:
         return np.array(0, dtype=np.int32)
     x = np.asarray(x, dtype=np.bool_)
@@ -177,18 +168,18 @@ def _csdi_days_per_year(bool_da: xr.DataArray, runlen: int) -> xr.DataArray:
         output_dtypes=[np.int32],
     )
 
-# ───────────────────────── main ───────────────────────── #
+# ───────────────── main ─────────────────
 
 def run(cfg):
     t0 = time.time()
-    print("🧮 Starting CSDI (per-model cached thresholds, streaming ensemble)…")
+    print("🧮 Starting CSDI (per-model cached thresholds, single-file inputs)…")
 
     # Config
     lat_bounds = [cfg["region"]["lat_min"], cfg["region"]["lat_max"]]
     lon_bounds = [cfg["region"]["lon_min"], cfg["region"]["lon_max"]]
 
     csdi_cfg  = cfg.get("csdi", {})
-    varname   = csdi_cfg.get("variable", "tasmin")           # TN
+    varname   = csdi_cfg.get("variable", "tasmin")
     runlen    = int(csdi_cfg.get("min_spell_length", 6))
     ref_start = csdi_cfg.get("reference_start", "1995-01-01")
     ref_end   = csdi_cfg.get("reference_end",   "2014-12-31")
@@ -196,140 +187,127 @@ def run(cfg):
     time_slices: Dict[str, Tuple[str, str]] = cfg.get("time_slices", {})
     experiments: List[str] = cfg.get("experiments", {}).get("select", ["historical"])
 
-    # Paths
+    # Paths (combined inputs)
     ROOT       = Path(__file__).resolve().parents[2]
-    DATA_DIR   = ROOT / "data" / varname
+    DATA_DIR   = ROOT / "data" / "combined" / varname
     OUTPUT_DIR = ROOT / "data" / "outputs" / "csdi"
     THR_DIR    = OUTPUT_DIR / "_thresholds"
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
     THR_DIR.mkdir(parents=True, exist_ok=True)
 
-    # Inventory files by experiment
-    exp_files: Dict[str, List[Path]] = {
-        exp: sorted(Path(p).resolve() for p in glob.glob(str(DATA_DIR / f"**/{exp}/*.nc"), recursive=True))
-        for exp in experiments
-    }
+    # Inventory: {experiment -> {model: file}}
+    exp_maps: Dict[str, Dict[str, Path]] = {}
+    for exp in experiments:
+        exp_dir = DATA_DIR / exp
+        exp_maps[exp] = _list_models(exp_dir, exp) if exp_dir.exists() else {}
+        print(f"📁 {exp}: {len(exp_maps[exp])} combined files")
 
-    # ---------- 1) Build/cache TN10p per model from historical ----------
-    hist_files = exp_files.get("historical", [])
-    hist_models = _models_in_files(hist_files, "historical")
+    # ---------- 1) Cache TN10p per model from historical ----------
+    hist_models = sorted(exp_maps.get("historical", {}).keys())
     print(f"\n📦 Caching TN10p (baseline {ref_start}–{ref_end}) for {len(hist_models)} models…")
 
     for model in hist_models:
         cache_path = THR_DIR / f"{model}_tn10p_{ref_start[:4]}-{ref_end[:4]}.nc"
         if cache_path.exists():
             continue
+        f_hist = exp_maps["historical"].get(model)
+        if f_hist is None:
+            continue
         try:
-            mfiles = _files_for_model_exp(DATA_DIR, model, "historical")
-            # Prefilter to speed IO; still slice later
-            mfiles = [p for p in mfiles if (y := _year_from_name(p)) and (1980 <= y <= 2014)] or mfiles
-            if not mfiles:
-                continue
+            with _open_single(f_hist) as dsh:
+                if varname not in dsh:
+                    continue
+                dsh = _select_bbox(dsh, lat_bounds, lon_bounds)
+                dsh = _slice_time_cf(dsh, ref_start, ref_end)
+                if dsh.sizes.get("time", 0) == 0:
+                    continue
 
-            dsh = _open_mf(mfiles)
-            dsh = _select_bbox(dsh, lat_bounds, lon_bounds)
-            dsh = _slice_time_cf(dsh, ref_start, ref_end)
-            if varname not in dsh or dsh.sizes.get("time", 0) == 0:
-                dsh.close()
-                continue
-
-            tn_hist_c = convert_units_to(dsh[varname], "degC")
-            thr_doy = _calendar10p_threshold(tn_hist_c).astype("float32")
-
-            xr.Dataset({"tn10p": thr_doy}).to_netcdf(cache_path, engine="h5netcdf")
-            dsh.close()
-            print(f"   ✓ cached {model}")
+                tn_hist_c = convert_units_to(dsh[varname], "degC")
+                thr_doy = _calendar10p_threshold(tn_hist_c).astype("float32")
+                xr.Dataset({"tn10p": thr_doy}).to_netcdf(cache_path, engine="h5netcdf")
+                print(f"   ✓ cached {model}")
         except Exception as e:
             print(f"   ⚠️ {model}: {e}")
 
+    # Map model -> cached threshold path
     thr_cache = {p.name.split("_tn10p_")[0]: p for p in THR_DIR.glob("*_tn10p_*.nc")}
 
-    # ---------- 2) Per experiment & time-slice, streaming ensemble ----------
-    for experiment, files in exp_files.items():
-        print(f"\n📁 Experiment: {experiment}  ({len(files)} files)")
-        if not files:
+    # ---------- 2) Ensemble per experiment / time slice ----------
+    for experiment in experiments:
+        model_files = exp_maps.get(experiment, {})
+        if not model_files:
+            print(f"\n📁 {experiment}: no files.")
             continue
 
+        print(f"\n📁 Experiment: {experiment}  (models: {len(model_files)})")
         slice_names = ["Baseline (1995–2014)"] if experiment == "historical" else \
                       [n for n in time_slices if not n.startswith("Baseline")]
 
-        models = _models_in_files(files, experiment)
-        print(f"   Models detected: {len(models)}")
-
         for slice_name in slice_names:
             start, end = time_slices.get(slice_name, [None, None])
-            sY, eY = int(start[:4]), int(end[:4])
+            if not start or not end:
+                continue
             print(f"\n→ Time slice: {slice_name}  ({start} → {end})")
 
             ens_sum = None
             ens_n = 0
             used_models: List[str] = []
 
-            for model in models:
+            for model, scen_file in sorted(model_files.items()):
+                cache_path = thr_cache.get(model)
+                if cache_path is None:
+                    continue  # no baseline TN10p for this model
+
                 try:
-                    scen_files = _files_for_model_exp(DATA_DIR, model, experiment)
-                    scen_files = [p for p in scen_files if (y := _year_from_name(p)) and (sY <= y <= eY)]
-                    if not scen_files:
-                        continue
+                    with _open_single(scen_file) as ds, xr.open_dataset(cache_path, engine="h5netcdf") as thr_ds:
+                        if varname not in ds:
+                            continue
 
-                    ds = _open_mf(scen_files)
-                    ds = _select_bbox(ds, lat_bounds, lon_bounds)
-                    ds = _slice_time_cf(ds, start, end)
-                    if varname not in ds or ds.sizes.get("time", 0) == 0:
-                        ds.close()
-                        continue
+                        ds = _select_bbox(ds, lat_bounds, lon_bounds)
+                        ds = _slice_time_cf(ds, start, end)
+                        if ds.sizes.get("time", 0) == 0:
+                            continue
 
-                    tn_scen_c = convert_units_to(ds[varname], "degC")
+                        tn_scen_c = convert_units_to(ds[varname], "degC")
+                        tn10p = thr_ds["tn10p"]
 
-                    cache_path = thr_cache.get(model)
-                    if cache_path is None:
-                        ds.close()
-                        continue
-                    thr_ds = xr.open_dataset(cache_path, engine="h5netcdf")
-                    tn10p = thr_ds["tn10p"]
+                        # Align threshold grid if needed (lat/lon only)
+                        if ("lat" in tn10p.coords and "lat" in tn_scen_c.coords
+                            and "lon" in tn10p.coords and "lon" in tn_scen_c.coords):
+                            if (tn10p.sizes.get("lat") != tn_scen_c.sizes.get("lat") or
+                                tn10p.sizes.get("lon") != tn_scen_c.sizes.get("lon")):
+                                tn10p = tn10p.reindex(lat=tn_scen_c["lat"], lon=tn_scen_c["lon"], method=None)
 
-                    # Align threshold grid if needed
-                    if ("lat" in tn10p.coords and "lat" in tn_scen_c.coords
-                        and ("lon" in tn10p.coords and "lon" in tn_scen_c.coords)):
-                        if (tn10p.sizes.get("lat") != tn_scen_c.sizes.get("lat")
-                            or tn10p.sizes.get("lon") != tn_scen_c.sizes.get("lon")):
-                            tn10p = tn10p.reindex(lat=tn_scen_c["lat"], lon=tn_scen_c["lon"], method=None)
+                        scen_doy = tn_scen_c["time"].dt.dayofyear
+                        max_doy = int(scen_doy.max())
+                        tn10p = _ensure_thr_has_day(tn10p, max_doy)
+                        thr_t = tn10p.sel(dayofyear=scen_doy)
 
-                    scen_doy = tn_scen_c["time"].dt.dayofyear
-                    max_doy = int(scen_doy.max())
-                    tn10p = _ensure_thr_has_day(tn10p, max_doy)
-                    thr_t = tn10p.sel(dayofyear=scen_doy)
+                        cold = tn_scen_c < thr_t  # daily bool
+                        cold = cold.chunk({"time": -1})  # ensure one time chunk for ufunc
 
-                    cold = tn_scen_c < thr_t
-                    cold = cold.chunk({"time": -1})  # silence parallelized core-dim warnings
+                        # Count cold-spell days per year
+                        per_year = []
+                        for yr, grp in cold.groupby("time.year"):
+                            grp = grp.chunk({"time": -1})
+                            days = _csdi_days_per_year(grp, runlen=runlen).assign_coords(year=yr)
+                            per_year.append(days)
+                        if not per_year:
+                            continue
 
-                    # Count cold-spell days per year
-                    per_year = []
-                    for yr, grp in cold.groupby("time.year"):
-                        grp = grp.chunk({"time": -1})
-                        days = _csdi_days_per_year(grp, runlen=runlen).assign_coords(year=yr)
-                        per_year.append(days)
-                    if not per_year:
-                        ds.close(); thr_ds.close()
-                        continue
+                        csdi_yearly = xr.concat(per_year, dim="year")
+                        csdi_mean = csdi_yearly.mean(dim="year").astype("float32").load()
 
-                    csdi_yearly = xr.concat(per_year, dim="year")
-                    csdi_mean = csdi_yearly.mean(dim="year").astype("float32").load()
+                        if ens_sum is None:
+                            ens_sum = csdi_mean.copy(); ens_n = 1
+                        else:
+                            if set(csdi_mean.dims) != set(ens_sum.dims) or any(
+                                csdi_mean.sizes.get(d) != ens_sum.sizes.get(d) for d in csdi_mean.dims
+                            ):
+                                csdi_mean = csdi_mean.reindex_like(ens_sum)
+                            ens_sum = ens_sum + csdi_mean; ens_n += 1
 
-                    # Streaming ensemble mean
-                    if ens_sum is None:
-                        ens_sum = csdi_mean.copy()
-                        ens_n = 1
-                    else:
-                        if set(csdi_mean.dims) != set(ens_sum.dims) or any(
-                            csdi_mean.sizes.get(d) != ens_sum.sizes.get(d) for d in csdi_mean.dims
-                        ):
-                            csdi_mean = csdi_mean.reindex_like(ens_sum)
-                        ens_sum = ens_sum + csdi_mean
-                        ens_n += 1
-
-                    used_models.append(model)
-                    ds.close(); thr_ds.close()
+                        used_models.append(model)
 
                 except Exception as e:
                     print(f"   ⚠️ {model}: {e}")

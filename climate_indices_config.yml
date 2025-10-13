@@ -15,17 +15,17 @@ time_slices:
   "Far-term (2081–2100)": ["2081-01-01", "2100-12-31"]
 
 run_indices:
-# - cdd
-# - cwd
-# - r10mm
-# - r20mm
-# - prcptot
+#- cdd
+#- cwd
+#- r10mm
+#- r20mm
+#- prcptot
 # - r95ptot
 # - r99ptot
 # - r95p
 # - r99p
-# - spi
-# - sdii
+#- spi
+#- sdii
 # - rx1day
 # - rx5day
   
@@ -33,17 +33,17 @@ run_indices:
 # - tnlt2
 # - txx
 # - tnn
-# - wsdi
-# - csdi
-# - txgt50p
-# - txge30
-# - txd_tnd
-# - tnx
-# - txn
-# - tx10p
-# - tx90p
-# - tn10p
-  - tn90p
+#- wsdi
+#- csdi
+#- txgt50p
+#- txge30
+- txd_tnd
+#- tnx
+#- txn
+#- tx10p
+#- tx90p
+#- tn10p
+#- tn90p
   
 region:
   # Spatial bounding box for subsetting climate model data
@@ -102,7 +102,9 @@ r99p:
   percentile: 99
   
 spi:
-  scales: [3, 6, 12]          # months
+  scales: [3, 6, 12]          # already there → runs all three windows
+  default_scale: 6            # ALSO write: spi_ensemble_mean_historical_baseline_1995-2014.nc (as SPI-6)
+# target_calendar: "noleap"   # recommended to match the script’s normalization
   reference_start: "1995-01-01"
   reference_end:   "2014-12-31"
   

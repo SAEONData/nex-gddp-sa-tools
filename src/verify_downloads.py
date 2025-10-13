@@ -144,11 +144,11 @@ def main():
                     status = f"🔴 {healthy_count}/{expected}"
 
                 detail = status
-                if missing_years:
-                    # keep short; full detail is in CSV
-                    detail += f" (missing {len(missing_years)}y)"
-                if extra_years:
-                    detail += f" (+{len(extra_years)} extra)"
+#               if missing_years:
+#                   # keep short; full detail is in CSV
+#                   detail += f" (missing {len(missing_years)}y)"
+#               if extra_years:
+#                   detail += f" (+{len(extra_years)} extra)"
 
                 row[f"{exp} ({expected})"] = detail
 

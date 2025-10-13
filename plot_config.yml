@@ -7,136 +7,144 @@ paths:
 
 scenarios:
   - historical
-  - ssp126
+# - ssp126
   - ssp245
   - ssp370
   - ssp585
 
 indices:
-# # CDD anomaly (Δ days relative to 1995–2014)
-# - name: cdd
-#   variable: max_cdd_anomaly     # <- explicit
-#   data_dir: "data/outputs/cdd"
-#   output: "cdd_bioregion_timeslices_anomaly.png"
-#   cmap: RdBu_r
-#   legend_label: "CDD Anomaly (Δ days vs 1995–2014)"
-#   spatial_agg: max
-#   anomaly: true                  
+## CDD anomaly (Δ days relative to 1995–2014)
+#- name: cdd
+# variable: max_cdd_anomaly     # <- explicit
+# data_dir: "data/outputs/cdd"
+# output: "cdd_bioregion_timeslices_anomaly.png"
+# cmap: BrBG_r
+# #"BrBG" – Brown to Blue-Green (Precipitation Indices)
+# #"RdBu_r" – Red to Blue (Temperature Indices)
+# legend_label: "CDD Anomaly (Δ days vs 1995–2014)"
+# spatial_agg: max
+# anomaly: true                  
 #
-# - name: cwd
-#   variable: max_cwd_anomaly
-#   data_dir: "data/outputs/cwd"
-#   output: "cwd_bioregion_timeslices_anomaly.png"
-#   cmap: RdBu      # red ↑ = wetter spells; blue ↓ = shorter spells
-#   legend_label: "CWD Anomaly (Δ days vs 1995–2014)"
-#   spatial_agg: max
-#   anomaly: true
+#- name: cwd
+# variable: max_cwd_anomaly
+# data_dir: "data/outputs/cwd"
+# output: "cwd_bioregion_timeslices_anomaly.png"
+# cmap: BrBG      # red ↑ = wetter spells; blue ↓ = shorter spells
+# legend_label: "CWD Anomaly (Δ days vs 1995–2014)"
+# spatial_agg: max
+# anomaly: true
 #   
-# - name: r10mm
-#   variable: r10mm_anomaly
-#   data_dir: "data/outputs/r10mm"
-#   output: "r10mm_bioregion_timeslices_anomaly.png"
-#   cmap: RdBu
-#   legend_label: "R10mm Anomaly (Δ days vs 1995–2014)"
-#   spatial_agg: sum
-#   anomaly: true
+#- name: r10mm
+# variable: r10mm_anomaly
+# data_dir: "data/outputs/r10mm"
+# output: "r10mm_bioregion_timeslices_anomaly.png"
+# cmap: BrBG
+# legend_label: "R10mm Anomaly (Δ days vs 1995–2014)"
+# spatial_agg: sum
+# anomaly: true
 #   
-# - name: r20mm
-#   variable: r20mm_anomaly
-#   data_dir: "data/outputs/r20mm"
-#   output: "r20mm_bioregion_timeslices_anomaly.png"
-#   cmap: RdBu
-#   legend_label: "R20mm Anomaly (Δ days vs 1995–2014)"
-#   spatial_agg: sum
-#   anomaly: true
+#- name: r20mm
+# variable: r20mm_anomaly
+# data_dir: "data/outputs/r20mm"
+# output: "r20mm_bioregion_timeslices_anomaly.png"
+# cmap: BrBG
+# legend_label: "R20mm Anomaly (Δ days vs 1995–2014)"
+# spatial_agg: sum
+# anomaly: true
 #   
-# - name: prcptot
-#   variable: prcptot_anomaly
-#   data_dir: "data/outputs/prcptot"
-#   output: "prcptot_bioregion_timeslices_anomaly.png"
-#   cmap: RdBu
-#   legend_label: "PRCPTOT Anomaly (Δ mm vs 1995–2014)"
-#   spatial_agg: sum
-#   anomaly: true
+#- name: prcptot
+# variable: prcptot_anomaly
+# data_dir: "data/outputs/prcptot"
+# output: "prcptot_bioregion_timeslices_anomaly.png"
+# cmap: BrBG
+# legend_label: "PRCPTOT Anomaly (Δ mm vs 1995–2014)"
+# spatial_agg: sum
+# anomaly: true
 #   
-# - name: r95ptot
-#   variable: r95ptot_anomaly
-#   data_dir: "data/outputs/r95ptot"
-#   cmap: RdBu
-#   legend_label: "R95pTOT Anomaly (Δ% vs 1995–2014)"
-#   anomaly: true
+
+#- name: r95p
+# variable: r95p_anomaly
+# data_dir: "data/outputs/r95p"
+# cmap: BrBG
+# legend_label: "R95p Anomaly (Δ mm vs 1995–2014)"
+# anomaly: true
 # 
-# - name: r99ptot
-#   variable: r99ptot_anomaly
-#   data_dir: "data/outputs/r99ptot"
-#   cmap: RdBu
-#   legend_label: "R99pTOT Anomaly (Δ% vs 1995–2014)"
-#   anomaly: true
-#   
-## # Optional absolute
-## - name: r99ptot
-##   variable: r99ptot
-##   data_dir: "data/outputs/r99ptot"
-##   cmap: YlGnBu
-##   legend_label: "R99pTOT (%)"
-##   anomaly: false
+# 
+#- name: r95ptot
+# variable: r95ptot_anomaly
+# data_dir: "data/outputs/r95ptot"
+# cmap: BrBG
+# legend_label: "R95pTOT Anomaly (Δ% vs 1995–2014)"
+# anomaly: true
 #
 #
-# - name: r95p
-#   variable: r95p_anomaly
-#   data_dir: "data/outputs/r95p"
-#   cmap: RdBu
-#   legend_label: "R95p Anomaly (Δ mm vs 1995–2014)"
-#   anomaly: true
-#   
-# # Optional absolute
-# - name: r95p
-#   variable: r95p
-#   data_dir: "data/outputs/r95p"
-#   cmap: YlGnBu
-#   legend_label: "R95p (mm per period)"
-#   anomaly: false
+#- name: r95p
+# variable: r95p
+# data_dir: "data/outputs/r95p"
+# cmap: BrBG
+# legend_label: "R95p (mm per period)"
+# anomaly: false
+
+
+
+#- name: r99p
+# variable: r99ptot_anomaly
+# data_dir: "data/outputs/r99ptot"
+# cmap: BrBG
+# legend_label: "R99pTOT Anomaly (Δ% vs 1995–2014)"
+# anomaly: true
+
+
+ 
+  # # Optional absolute
+#- name: r99ptot
+# variable: r99ptot
+# data_dir: "data/outputs/r99ptot"
+# cmap: BrBG
+# legend_label: "R99pTOT Anomaly (Δ% vs 1995–2014)"
+# anomaly: true
 #
-# - name: r99p
-#   variable: r99p_anomaly
-#   data_dir: "data/outputs/r99p"
-#   cmap: RdBu
-#   legend_label: "R99p Anomaly (Δ mm vs 1995–2014)"
-#   anomaly: true
+#
+#- name: r99p
+# variable: r99p_anomaly
+# data_dir: "data/outputs/r99p"
+# cmap: BrBG
+# legend_label: "R99p (mm per period)"
+# anomaly: false
 #   
-# - name: spi3
-#   variable: spi3
-#   data_dir: "data/outputs/spi"
-#   cmap: RdBu
-#   legend_label: "Standardized Precipitation Index (3-month) — SPI < -1 dry, SPI > 1 wet"
-#   anomaly: false
-#   vmin: -1.5
-#   vmax:  1.5
+#- name: spi3
+# variable: spi3
+# data_dir: "data/outputs/spi"
+# cmap: BrBG
+# legend_label: "Standardized Precipitation Index (3-month) — SPI < -1 dry, SPI > 1 wet"
+# anomaly: false
+# vmin: -1.5
+# vmax:  1.5
+#
+#- name: spi6
+# variable: spi6
+# data_dir: "data/outputs/spi"
+# cmap: BrBG
+# legend_label: "Standardized Precipitation Index (6-month) — SPI < -1 dry, SPI > 1 wet"
+# anomaly: false
+# vmin: -1.5
+# vmax:  1.5
+#
+#- name: spi12
+# variable: spi12
+# data_dir: "data/outputs/spi"
+# cmap: BrBG
+# legend_label: "Standardized Precipitation Index (12-month) — SPI < -1 dry, SPI > 1 wet"
+# anomaly: false
+# vmin: -1.5
+# vmax:  1.5
 #   
-# - name: spi6
-#   variable: spi6
-#   data_dir: "data/outputs/spi"
-#   cmap: RdBu
-#   legend_label: "Standardized Precipitation Index (6-month) — SPI < -1 dry, SPI > 1 wet"
-#   anomaly: false
-#   vmin: -1.5
-#   vmax:  1.5
-#   
-# - name: spi12
-#   variable: spi12
-#   data_dir: "data/outputs/spi"
-#   cmap: RdBu
-#   legend_label: "Standardized Precipitation Index (12-month) — SPI < -1 dry, SPI > 1 wet"
-#   anomaly: false
-#   vmin: -1.5
-#   vmax:  1.5
-#   
-# - name: sdii
-#   variable: sdii_anomaly
-#   data_dir: "data/outputs/sdii"
-#   cmap: RdBu
-#   legend_label: "SDII Anomaly (Δ mm/day vs 1995–2014)"
-#   anomaly: true
+#- name: sdii
+# variable: sdii_anomaly
+# data_dir: "data/outputs/sdii"
+# cmap: BrBG
+# legend_label: "SDII Anomaly (Δ mm/day vs 1995–2014)"
+# anomaly: true
 #   
 # - name: sdii
 #   variable: sdii
@@ -145,65 +153,65 @@ indices:
 #   legend_label: "SDII (mm/day)"
 #   anomaly: false
 #   
-# - name: rx1day
-#   variable: rx1day_anomaly
-#   data_dir: "data/outputs/rx1day"
-#   cmap: RdBu                 # red = decrease, blue = increase (flip to RdBu_r if you prefer the opposite)
-#   legend_label: "Rx1day Anomaly (Δ mm vs 1995–2014)"
-#   anomaly: true
-#   # Optional manual bounds if you want a fixed scale:
-#   # vmin: -50
-#   # vmax:  50
-# 
-# # --- Rx1day absolute (climatology/context) ---
-# - name: rx1day
-#   variable: rx1day
-#   data_dir: "data/outputs/rx1day"
-#   cmap: YlGnBu               # sequential reads well for amounts
-#   legend_label: "Rx1day (Wettest Day, mm)"
-#   anomaly: false
-#   # Optional bounds (tune after first run):
-#   # vmin: 20
-#   # vmax: 200
-#   
-#
+#- name: rx1day
+# variable: rx1day_anomaly
+# data_dir: "data/outputs/rx1day"
+# cmap: BrBG                 # red = decrease, blue = increase (flip to RdBu_r if you prefer the opposite)
+# legend_label: "Rx1day Anomaly (Δ mm vs 1995–2014)"
+# anomaly: true
+## Optional manual bounds if you want a fixed scale:
+## vmin: -50
+## vmax:  50
+## 
+## --- Rx1day absolute (climatology/context) ---
+#- name: rx1day
+# variable: rx1day
+# data_dir: "data/outputs/rx1day"
+# cmap: BrBG               # sequential reads well for amounts
+# legend_label: "Rx1day (Wettest Day, mm)"
+# anomaly: false
+## Optional bounds (tune after first run):
+## vmin: 20
+## vmax: 200
+##   
+##
 #- name: rx5day
 # variable: rx5day_anomaly
 # data_dir: "data/outputs/rx5day"
-# cmap: RdBu
+# cmap: BrBG
 # legend_label: "Rx5day Anomaly (Δ mm vs 1995–2014)"
 # anomaly: true
-# # vmin: -100   # optional fixed scale suggestion
-# # vmax:  100
-# 
-#
+## vmin: -100   # optional fixed scale suggestion
+## vmax:  100
+## 
+##
 #- name: rx5day
 # variable: rx5day
 # data_dir: "data/outputs/rx5day"
-# cmap: YlGnBu
+# cmap: BrBG
 # legend_label: "Rx5day (Wettest 5-day Total, mm)"
 # anomaly: false
-# # vmin: 50     # tune after first pass
-# # vmax: 300
+# vmin: 50     # tune after first pass
+# vmax: 300
 #
-## Anomaly (recommended)
+# Anomaly (recommended)
 #- name: fd
 # variable: fd_anomaly
 # data_dir: "data/outputs/fd"
 # cmap: RdBu
 # legend_label: "FD Anomaly (Δ days vs 1995–2014)"
 # anomaly: true
-# # vmin: -20
-# # vmax:  20
-# 
+## vmin: -20
+## vmax:  20
+#
 ## Absolute frost days
 #- name: fd
 # variable: fd
 # data_dir: "data/outputs/fd"
-# cmap: YlGnBu
+# cmap: RdBu
 # legend_label: "Frost Days per Year (days)"
 # anomaly: false
-# # vmin: 0
+# vmin: 0
 # # vmax: 60
 # 
 ## Anomaly
@@ -213,8 +221,8 @@ indices:
 # cmap: RdBu
 # legend_label: "TNlt2 Anomaly (Δ days vs 1995–2014)"
 # anomaly: true
-# # vmin: -20
-# # vmax:  20
+# vmin: -20
+# vmax:  20
 # 
 ## Absolute
 #- name: tnlt2
@@ -233,28 +241,28 @@ indices:
 # cmap: RdBu_r                # red = hotter, blue = cooler
 # legend_label: "TXx Anomaly (Δ °C vs 1995–2014)"
 # anomaly: true
-# # vmin: 0      # if you want only increases
-# # vmax: 6
-#
-## Absolute
-#- name: txx
-# variable: txx
-# data_dir: "data/outputs/txx"
-# cmap: YlOrRd               # sequential warm
-# legend_label: "TXx (Warmest Daily Tmax, °C)"
-# anomaly: false
-# # vmin: 25
-# # vmax: 50
-# 
-# # Anomaly (recommended)
+## vmin: 0      # if you want only increases
+## vmax: 6
+##
+### Absolute
+##- name: txx
+## variable: txx
+## data_dir: "data/outputs/txx"
+## cmap: YlOrRd               # sequential warm
+## legend_label: "TXx (Warmest Daily Tmax, °C)"
+## anomaly: false
+## # vmin: 25
+## # vmax: 50
+## 
+## # Anomaly (recommended)
 #- name: tnn
 # variable: tnn_anomaly
 # data_dir: "data/outputs/tnn"
 # cmap: RdBu_r                 # red = warmer, blue = colder
 # legend_label: "TNn Anomaly (Δ °C vs 1995–2014)"
 # anomaly: true
-# # vmin: -6
-# # vmax:  6
+## vmin: -6
+## vmax:  6
 # 
 ### Absolute
 ##- name: tnn
@@ -273,51 +281,51 @@ indices:
 # cmap: RdBu_r              # red = increase, blue = decrease
 # legend_label: "WSDI Anomaly (Δ days vs 1995–2014)"
 # anomaly: true
-# # vmin: -5
-# # vmax:  20
-# 
+## vmin: -5
+## vmax:  20
+#
 ## Absolute (recommended)
 #- name: wsdi
 # variable: wsdi
 # data_dir: "data/outputs/wsdi"
-# cmap: YlOrRd
+# cmap: RdBu_r
 # legend_label: "WSDI (days per year)"
 # anomaly: false
-# # vmin: 0
-# # vmax: 40
-#
+## vmin: 0
+## vmax: 40
+##
 #- name: csdi
 # variable: csdi_anomaly
 # data_dir: "data/outputs/csdi"
 # cmap: RdBu
 # legend_label: "CSDI Anomaly (Δ days vs 1995–2014)"
 # anomaly: true
-# 
-# 
+## 
+## 
 #- name: txgt50p
 # variable: txgt50p_anomaly
 # data_dir: "data/outputs/txgt50p"
 # cmap: RdBu_r
 # legend_label: "TXgt50p Anomaly (Δ percentage points vs 1995–2014)"
 # anomaly: true
-# 
+## 
 #- name: txgt50p
 # variable: txgt50p
 # data_dir: "data/outputs/txgt50p"
-# cmap: YlOrRd
+# cmap: RdBu_r
 # legend_label: "TXgt50p (% of days)"
 # anomaly: false
-# 
+## 
 ## Absolute values – good for thresholds & planning
 ## Absolute values – good for thresholds & planning
 #- name: txge30
 # variable: txge30
 # data_dir: "data/outputs/txge30"
 # output: "txge30_abs_bioregion_timeslices.png"
-# cmap: YlOrRd
+# cmap: RdBu_r
 # legend_label: "Days per year with TX ≥ 30°C"
 # anomaly: false
-# 
+## 
 ## Anomalies – only if you have anomaly files written!
 #- name: txge30
 # variable: txge30
@@ -327,35 +335,35 @@ indices:
 # legend_label: "Change in days per year (relative to 1995–2014)"
 # anomaly: true
 # 
-#- name: txd_tnd
-# variable: txd_tnd_events
-# data_dir: "data/outputs/txd_tnd"
-# output: "txdtnd_timeslices.png"
-# cmap: YlOrRd
-# legend_label: "Heatwave events per year (TX & TN > 95th, ≥3 days)"
-# anomaly: false
-# 
-#- name: txd_tnd
-# variable: txd_tnd_events_anom
-# data_dir: "data/outputs/txd_tnd"
-# output: "txd_tnd_anomaly_timeslices.png"
-# cmap: RdBu_r
-# legend_label: "txd_tnd (Δ events/year vs 1995–2014)"
-# anomaly: true
+- name: txd_tnd
+  variable: txd_tnd_events
+  data_dir: "data/outputs/txd_tnd"
+  output: "txdtnd_timeslices.png"
+  cmap: YlOrRd
+  legend_label: "Heatwave events per year (TX & TN > 95th, ≥3 days)"
+  anomaly: false
+
+- name: txd_tnd
+  variable: txd_tnd_events_anom
+  data_dir: "data/outputs/txd_tnd"
+  output: "txd_tnd_anomaly_timeslices.png"
+  cmap: RdBu_r
+  legend_label: "txd_tnd (Δ events/year vs 1995–2014)"
+  anomaly: true
 # 
 # # Absolute TNx — what is the typical hottest-night temperature?
 #- name: tnx
-# variable: tnx
-# data_dir: "data/outputs/tnx"
-# output: "tnx_abs_bioregion_timeslices.png"
-# cmap: YlOrRd                 # warm sequential reads naturally for temperature
-# legend_label: "TNx (Warmest Daily Min, °C)"
-# anomaly: false
-# # Optional fixed bounds once you see first plots:
-# # vmin: 20
-# # vmax: 35
+#variable: tnx
+#data_dir: "data/outputs/tnx"
+#output: "tnx_abs_bioregion_timeslices.png"
+#cmap: YlOrRd                 # warm sequential reads naturally for temperature
+#legend_label: "TNx (Warmest Daily Min, °C)"
+#anomaly: false
+# Optional fixed bounds once you see first plots:
+# vmin: 20
+# vmax: 35
 # 
-# # Anomaly TNx — how much hotter are the hottest nights vs 1995–2014?
+# Anomaly TNx — how much hotter are the hottest nights vs 1995–2014?
 #- name: tnx
 # variable: tnx
 # data_dir: "data/outputs/tnx"
@@ -363,9 +371,9 @@ indices:
 # cmap: RdBu_r                 # red = warmer nights, blue = cooler
 # legend_label: "TNx Anomaly (Δ °C vs 1995–2014)"
 # anomaly: true
-# # Optional symmetric bounds:
-# # vmin: -3
-# # vmax:  3
+# Optional symmetric bounds:
+# vmin: -3
+# vmax:  3
 # 
 ## Anomaly (recommended): warmer coldest days show as red
 #- name: txn
@@ -385,7 +393,7 @@ indices:
 # legend_label: "TXn (Coldest Daily Tmax, °C)"
 # anomaly: false
 # 
-## Anomaly (recommended) — fewer cool days show as red
+# Anomaly (recommended) — fewer cool days show as red
 #- name: tx10p
 # variable: tx10p_anomaly
 # data_dir: "data/outputs/tx10p"
@@ -393,7 +401,7 @@ indices:
 # cmap: RdBu                       # red = fewer cool days, blue = more
 # legend_label: "TX10p Anomaly (Δ percentage points vs 1995–2014)"
 # anomaly: true
-# 
+#
 ## Absolute — % of cool days per slice
 #- name: tx10p
 # variable: tx10p
@@ -403,7 +411,7 @@ indices:
 # legend_label: "TX10p (% of days)"
 # anomaly: false
 
-## Anomaly (recommended) — red = more hot days, blue = fewer
+# Anomaly (recommended) — red = more hot days, blue = fewer
 #- name: tx90p
 # variable: tx90p_anomaly
 # data_dir: "data/outputs/tx90p"
@@ -411,7 +419,7 @@ indices:
 # cmap: RdBu_r
 # legend_label: "TX90p Anomaly (Δ percentage points vs 1995–2014)"
 # anomaly: true
-# 
+#
 ## Absolute — % of hot days per slice
 #- name: tx90p
 # variable: tx90p
@@ -420,8 +428,8 @@ indices:
 # cmap: YlOrRd
 # legend_label: "TX90p (% of days)"
 # anomaly: false
-# 
-## Anomaly — blue = MORE cold nights, red = FEWER (warming)
+#
+# Anomaly — blue = MORE cold nights, red = FEWER (warming)
 #- name: tn10p
 # variable: tn10p_anomaly
 # data_dir: "data/outputs/tn10p"
@@ -429,7 +437,7 @@ indices:
 # cmap: RdBu               # not reversed: positive (more cold nights) = blue
 # legend_label: "TN10p Anomaly (Δ percentage points vs 1995–2014)"
 # anomaly: true
-# 
+#
 ## Absolute — % of cold nights per slice
 #- name: tn10p
 # variable: tn10p
@@ -438,21 +446,21 @@ indices:
 # cmap: Blues
 # legend_label: "TN10p (% of days)"
 # anomaly: false
-# 
-# Anomaly — red = MORE warm nights, blue = FEWER
-- name: tn90p
-  variable: tn90p_anomaly
-  data_dir: "data/outputs/tn90p"
-  output: "tn90p_bioregion_timeslices_anomaly.png"
-  cmap: RdBu_r                 # red = increase in warm nights
-  legend_label: "TN90p Anomaly (Δ percentage points vs 1995–2014)"
-  anomaly: true
-  
-# Absolute — % of warm nights per slice
-- name: tn90p
-  variable: tn90p
-  data_dir: "data/outputs/tn90p"
-  output: "tn90p_bioregion_timeslices_abs.png"
-  cmap: YlOrRd
-  legend_label: "TN90p (% of days)"
-  anomaly: false
+#
+#Anomaly — red = MORE warm nights, blue = FEWER
+#- name: tn90p
+# variable: tn90p_anomaly
+# data_dir: "data/outputs/tn90p"
+# output: "tn90p_bioregion_timeslices_anomaly.png"
+# cmap: RdBu_r                 # red = increase in warm nights
+# legend_label: "TN90p Anomaly (Δ percentage points vs 1995–2014)"
+# anomaly: true
+#
+## Absolute — % of warm nights per slice
+#- name: tn90p
+# variable: tn90p
+# data_dir: "data/outputs/tn90p"
+# output: "tn90p_bioregion_timeslices_abs.png"
+# cmap: YlOrRd
+# legend_label: "TN90p (% of days)"
+# anomaly: false

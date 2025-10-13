@@ -61,7 +61,7 @@ def run(cfg):
 
     # Paths
     ROOT       = Path(__file__).resolve().parents[2]
-    DATA_DIR   = ROOT / "data" / varname
+    DATA_DIR   = ROOT / "data" / "combined"/ varname
     OUTPUT_DIR = ROOT / "data" / "outputs" / "tnn"
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 
